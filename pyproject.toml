@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61.0", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "carconnectivity-plugin-campermode"
+description = "CarConnectivity plugin for overnight climatisation cycling (camper mode)"
+dynamic = ["version"]
+requires-python = ">=3.10"
+authors = [{ name = "Andreas Schneider" }]
+dependencies = [
+    "carconnectivity>=0.11.5",
+    "Werkzeug~=3.1.3",
+    "Flask~=3.1.2",
+    "flask-login~=0.6.3",
+    "flask_wtf~=1.2.2",
+    "Bootstrap-Flask~=2.5.0",
+]
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+classifiers = [
+    "Topic :: Home Automation",
+]
+
+[tool.setuptools_scm]
+write_to = "src/carconnectivity_plugins/campermode/_version.py"
+
+[tool.ruff]
+line-length = 79
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "TCH", # flake8-type-checking
+    "RUF", # ruff-specific rules
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["carconnectivity_plugins", "carconnectivity"]
+
+[tool.basedpyright]
+pythonVersion = "3.10"
+typeCheckingMode = "standard"
