@@ -13,6 +13,7 @@ from carconnectivity_plugins.campermode.models import (
     CamperSettings,
     CamperState,
     CamperTimer,
+    PhaseState,
     load_data,
     save_data,
 )
@@ -82,6 +83,21 @@ def test_timer_from_dict_string_days_of_week():
 
 
 # ---------------------------------------------------------------------------
+# PhaseState
+# ---------------------------------------------------------------------------
+
+
+def test_phase_state_values_match_legacy_strings():
+    assert PhaseState.IDLE == "idle"
+    assert PhaseState.HEATING == "heating"
+    assert PhaseState.PAUSED == "paused"
+
+
+def test_phase_state_is_str():
+    assert isinstance(PhaseState.HEATING, str)
+
+
+# ---------------------------------------------------------------------------
 # CamperSettings
 # ---------------------------------------------------------------------------
 
@@ -134,6 +150,45 @@ def test_settings_from_dict_missing_keys_use_defaults():
     s = CamperSettings.from_dict({})
     assert s.min_battery_level == 20
     assert s.target_temperature == pytest.approx(22.0)
+
+
+def test_settings_clamps_battery_level_above_100():
+    s = CamperSettings(min_battery_level=150)
+    assert s.min_battery_level == 100
+
+
+def test_settings_clamps_battery_level_below_0():
+    s = CamperSettings(min_battery_level=-5)
+    assert s.min_battery_level == 0
+
+
+def test_settings_clamps_cycle_duration_to_minimum_1():
+    s = CamperSettings(cycle_duration_minutes=0)
+    assert s.cycle_duration_minutes == 1
+
+
+def test_settings_clamps_total_duration_to_minimum_1():
+    s = CamperSettings(total_duration_minutes=0)
+    assert s.total_duration_minutes == 1
+
+
+def test_settings_clamps_temperature_below_min():
+    s = CamperSettings(target_temperature=5.0)
+    assert s.target_temperature == pytest.approx(15.5)
+
+
+def test_settings_clamps_temperature_above_max():
+    s = CamperSettings(target_temperature=99.0)
+    assert s.target_temperature == pytest.approx(30.0)
+
+
+def test_settings_from_dict_clamps_invalid_values():
+    s = CamperSettings.from_dict(
+        {"cycle_duration_minutes": 0, "min_battery_level": 200, "target_temperature": 0.0}
+    )
+    assert s.cycle_duration_minutes == 1
+    assert s.min_battery_level == 100
+    assert s.target_temperature == pytest.approx(15.5)
 
 
 # ---------------------------------------------------------------------------

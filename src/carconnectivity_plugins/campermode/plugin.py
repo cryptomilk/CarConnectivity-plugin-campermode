@@ -5,7 +5,19 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from carconnectivity.attributes import LevelAttribute
+from carconnectivity.drive import ElectricDrive
+from carconnectivity.observable import Observable
+from carconnectivity.vehicle import GenericVehicle
 from carconnectivity_plugins.base.plugin import BasePlugin
+from carconnectivity_plugins.campermode.models import (
+    CamperSettings,
+    CamperState,
+    CamperTimer,
+    load_data,
+    save_data,
+)
+from carconnectivity_plugins.campermode.scheduler import CamperScheduler
 
 if TYPE_CHECKING:
     from carconnectivity.carconnectivity import CarConnectivity
@@ -34,17 +46,91 @@ class Plugin(BasePlugin):
             initialization=initialization,
             **kwargs,
         )
+        self._data_file: str = str(config.get("data_file", "campermode.json"))
+        self._vin: str | None = (
+            str(config["vin"])
+            if "vin" in config and config["vin"] is not None
+            else None
+        )
+        self._settings, self._timers = load_data(self._data_file)
+        self._state = CamperState()
+        self._scheduler = CamperScheduler(
+            self._settings, self._state, self._timers
+        )
+        self._observed_drives: list[ElectricDrive] = []
         LOG.info("CamperMode plugin initialised (id=%s)", plugin_id)
 
     def startup(self) -> None:
         LOG.info("Starting CamperMode plugin")
+        self.car_connectivity.garage.add_observer(
+            self._on_vehicle_added,
+            flag=Observable.ObserverEvent.ENABLED,
+            on_transaction_end=True,
+        )
+        for vehicle in self.car_connectivity.garage.list_vehicles():
+            self._try_connect_vehicle(vehicle)
+        self._scheduler.start()
         self.healthy._set_value(value=True)  # pylint: disable=protected-access
         LOG.debug("Starting CamperMode plugin done")
         return super().startup()
 
+    def _try_connect_vehicle(self, vehicle: GenericVehicle) -> None:
+        if self._vin is not None and vehicle.vin.value != self._vin:
+            return
+        self._scheduler.set_vehicle(vehicle)
+        for drive in vehicle.drives.drives.values():
+            if isinstance(drive, ElectricDrive):
+                drive.level.add_observer(
+                    self._on_battery_changed,
+                    flag=Observable.ObserverEvent.VALUE_CHANGED,
+                )
+                self._observed_drives.append(drive)
+                if drive.level.value is not None:
+                    self._scheduler.update_battery_level(
+                        int(drive.level.value)
+                    )
+
+    def _on_vehicle_added(
+        self, element: object, flags: Observable.ObserverEvent
+    ) -> None:
+        del flags
+        if isinstance(element, GenericVehicle):
+            self._try_connect_vehicle(element)
+
+    def _on_battery_changed(
+        self, element: object, flags: Observable.ObserverEvent
+    ) -> None:
+        del flags
+        if isinstance(element, LevelAttribute) and element.value is not None:
+            self._scheduler.update_battery_level(int(element.value))
+
     def shutdown(self) -> None:
         LOG.info("Shutting down CamperMode plugin")
+        self._scheduler.stop_session(reason="shutdown")
+        self.car_connectivity.garage.remove_observer(self._on_vehicle_added)
+        for drive in self._observed_drives:
+            drive.level.remove_observer(self._on_battery_changed)
+        self._scheduler.stop()
+        save_data(self._data_file, self._settings, self._timers)
         return super().shutdown()
+
+    @property
+    def scheduler(self) -> CamperScheduler:
+        return self._scheduler
+
+    @property
+    def settings(self) -> CamperSettings:
+        return self._settings
+
+    @property
+    def state(self) -> CamperState:
+        return self._state
+
+    @property
+    def timers(self) -> list[CamperTimer]:
+        # Return a shallow copy so callers cannot structurally modify the
+        # internal list that the scheduler iterates under its lock.
+        return list(self._timers)
 
     def get_version(self) -> str:
         return "0.1.0.dev0"

@@ -5,10 +5,19 @@ from __future__ import annotations
 import json
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, time
+from enum import Enum
 
 LOG: logging.Logger = logging.getLogger("carconnectivity.plugins.campermode")
+
+
+class PhaseState(str, Enum):
+    """Lifecycle phase of an active camper session."""
+
+    IDLE = "idle"
+    HEATING = "heating"
+    PAUSED = "paused"
 
 
 @dataclass
@@ -21,6 +30,9 @@ class CamperTimer:
     repeat_weekly: bool
     enabled: bool
     created_at: datetime
+    # Runtime-only: tracks when this timer last fired to prevent repeated
+    # triggering within the ±60 s match window. Not persisted.
+    last_fired_at: datetime | None = field(default=None, repr=False)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -59,6 +71,14 @@ class CamperSettings:
     rear_zone_left: bool = False
     rear_zone_right: bool = False
     target_temperature: float = 22.0
+
+    def __post_init__(self) -> None:
+        self.min_battery_level = max(0, min(100, self.min_battery_level))
+        self.cycle_duration_minutes = max(1, self.cycle_duration_minutes)
+        self.minutes_between_cycles = max(0, self.minutes_between_cycles)
+        self.total_duration_minutes = max(1, self.total_duration_minutes)
+        # VW climate system accepts 15.5–30.0 °C
+        self.target_temperature = max(15.5, min(30.0, self.target_temperature))
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -105,7 +125,7 @@ class CamperState:
     """Runtime state (not persisted)."""
 
     active: bool = False
-    current_phase: str = "idle"
+    current_phase: PhaseState = PhaseState.IDLE
     cycle_number: int = 0
     phase_remaining_seconds: int = 0
     total_remaining_seconds: int = 0
@@ -171,7 +191,13 @@ def load_data(
     except FileNotFoundError:
         LOG.debug("No data file at %s, using defaults", path)
         return CamperSettings(), []
-    except (OSError, json.JSONDecodeError, KeyError, ValueError, TypeError) as exc:
+    except (
+        OSError,
+        json.JSONDecodeError,
+        KeyError,
+        ValueError,
+        TypeError,
+    ) as exc:
         LOG.error(
             "Failed to load campermode data from %s: %s, using defaults",
             path,
