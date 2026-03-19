@@ -187,7 +187,10 @@ class CamperUI:
 
         @self.app.route("/account")
         def account() -> str:
-            return flask.render_template("campermode/account.html")
+            return flask.render_template(
+                "campermode/account.html",
+                auth_enabled=bool(self.users),
+            )
 
         @self.app.route("/healthcheck")
         def healthcheck() -> str:

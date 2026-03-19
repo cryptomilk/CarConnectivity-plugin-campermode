@@ -5,7 +5,9 @@
 {% block content %}
 <div class="container mt-4">
   <h2>Account</h2>
-  {% if current_user.is_authenticated %}
+  {% if not auth_enabled %}
+  <p class="text-muted">No account configured. Access is unrestricted.</p>
+  {% elif current_user.is_authenticated %}
   <p>Logged in as <strong>{{ current_user.get_id() }}</strong>.</p>
   <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary">Logout</a>
   {% else %}
