@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import binascii
 import logging
+import math
 import os
 import threading
 import time
@@ -262,9 +263,57 @@ class CamperUI:
                 }
             )
 
-        @self.app.route("/settings")
-        def settings() -> str:
-            return "Settings (Phase 6 pending)"
+        @self.app.route("/settings", methods=["GET", "POST"])
+        def settings() -> WerkzeugResponse | str:
+            plugin = self._plugin
+            s = plugin.settings
+            if flask.request.method == "POST":
+                try:
+                    window_heating = "window_heating" in flask.request.form
+                    front_zone_left = "front_zone_left" in flask.request.form
+                    front_zone_right = "front_zone_right" in flask.request.form
+                    rear_zone_left = "rear_zone_left" in flask.request.form
+                    rear_zone_right = "rear_zone_right" in flask.request.form
+                    target_temperature = float(
+                        flask.request.form.get(
+                            "target_temperature",
+                            s.target_temperature,
+                        )
+                    )
+                except (ValueError, TypeError):
+                    flask.flash("Invalid form values.", "danger")
+                    return flask.redirect(flask.url_for("settings"))
+                if not math.isfinite(target_temperature) or not (
+                    15.5 <= target_temperature <= 30.0
+                ):
+                    flask.flash(
+                        "Temperature must be between 15.5 and 30.0 °C.",
+                        "danger",
+                    )
+                    return flask.redirect(flask.url_for("settings"))
+                plugin.scheduler.update_climate_settings(
+                    window_heating=window_heating,
+                    front_zone_left=front_zone_left,
+                    front_zone_right=front_zone_right,
+                    rear_zone_left=rear_zone_left,
+                    rear_zone_right=rear_zone_right,
+                    target_temperature=target_temperature,
+                )
+                plugin.save_settings()
+                if plugin.state.active:
+                    flask.flash(
+                        "Settings saved. Zone settings take effect at the"
+                        " next session start; temperature applies at the"
+                        " next heating cycle.",
+                        "info",
+                    )
+                else:
+                    flask.flash("Settings saved.", "success")
+                return flask.redirect(flask.url_for("settings"))
+            return flask.render_template(
+                "campermode/settings.html",
+                current_settings=s,
+            )
 
         @self.app.route("/timers")
         def timers() -> str:

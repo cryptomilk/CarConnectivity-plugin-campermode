@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, time
 from enum import Enum
 
@@ -72,13 +72,21 @@ class CamperSettings:
     rear_zone_right: bool = False
     target_temperature: float = 22.0
 
-    def __post_init__(self) -> None:
+    def clamp(self) -> None:
+        """Clamp all numeric fields to their valid ranges."""
         self.min_battery_level = max(0, min(100, self.min_battery_level))
         self.cycle_duration_minutes = max(1, self.cycle_duration_minutes)
         self.minutes_between_cycles = max(0, self.minutes_between_cycles)
         self.total_duration_minutes = max(1, self.total_duration_minutes)
         # VW climate system accepts 15.5-30.0 °C
         self.target_temperature = max(15.5, min(30.0, self.target_temperature))
+
+    def __post_init__(self) -> None:
+        self.clamp()
+
+    def snapshot(self) -> CamperSettings:
+        """Return a shallow copy with all current field values."""
+        return replace(self)
 
     @property
     def has_active_heating(self) -> bool:

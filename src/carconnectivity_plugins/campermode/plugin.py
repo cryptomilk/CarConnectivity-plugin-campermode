@@ -177,11 +177,7 @@ class Plugin(BasePlugin):
 
     @property
     def settings(self) -> CamperSettings:
-        # Returns the live object — read-only outside the scheduler.
-        # To mutate settings safely use scheduler.update_settings(), which
-        # holds the scheduler lock and prevents races with the scheduler
-        # thread.
-        return self._settings
+        return self._scheduler.settings_snapshot()
 
     @property
     def state(self) -> CamperState:

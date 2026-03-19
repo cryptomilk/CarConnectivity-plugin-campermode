@@ -1,0 +1,97 @@
+{% extends "campermode/base.html" %}
+
+{% block title %}Settings — CamperMode{% endblock %}
+
+{% block content %}
+<div class="container py-3">
+
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {# General climate settings #}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">General Climate Settings</div>
+      <div class="card-body">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="window_heating"
+                 name="window_heating" value="1"
+                 {% if current_settings.window_heating %}checked{% endif %}>
+          <label class="form-check-label" for="window_heating">
+            Automatic Window Heating
+          </label>
+        </div>
+      </div>
+    </div>
+
+    {# Climate zones #}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">Climate Zones</div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">
+          Seat heating zones require the Volkswagen connector.
+          Changes take effect at the next session start.
+        </p>
+        <div class="row mb-2">
+          <div class="col-3 d-flex align-items-center fw-medium">Front</div>
+          <div class="col-4">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="front_zone_left"
+                     name="front_zone_left" value="1"
+                     {% if current_settings.front_zone_left %}checked{% endif %}>
+              <label class="form-check-label" for="front_zone_left">Left</label>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="front_zone_right"
+                     name="front_zone_right" value="1"
+                     {% if current_settings.front_zone_right %}checked{% endif %}>
+              <label class="form-check-label" for="front_zone_right">Right</label>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-3 d-flex align-items-center fw-medium">Rear</div>
+          <div class="col-4">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="rear_zone_left"
+                     name="rear_zone_left" value="1"
+                     {% if current_settings.rear_zone_left %}checked{% endif %}>
+              <label class="form-check-label" for="rear_zone_left">Left</label>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="rear_zone_right"
+                     name="rear_zone_right" value="1"
+                     {% if current_settings.rear_zone_right %}checked{% endif %}>
+              <label class="form-check-label" for="rear_zone_right">Right</label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# Target temperature #}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">Target Temperature</div>
+      <div class="card-body">
+        <label for="target_temperature" class="form-label">
+          Temperature:
+          <strong><span id="temp-label">{{ "%.1f"|format(current_settings.target_temperature) }}</span>&nbsp;°C</strong>
+        </label>
+        <input type="range" class="form-range" id="target_temperature"
+               name="target_temperature"
+               min="15.5" max="30.0" step="0.5"
+               value="{{ "%.1f"|format(current_settings.target_temperature) }}"
+               oninput="document.getElementById('temp-label').textContent = this.value">
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100 py-2">
+      Apply Settings
+    </button>
+  </form>
+
+</div>
+{% endblock %}

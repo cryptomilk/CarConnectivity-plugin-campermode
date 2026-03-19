@@ -106,7 +106,32 @@ class CamperScheduler:
             self._settings.minutes_between_cycles = minutes_between_cycles
             self._settings.total_duration_minutes = total_duration_minutes
             self._settings.endless = endless
-            self._settings.__post_init__()
+            self._settings.clamp()
+
+    def update_climate_settings(
+        self,
+        *,
+        window_heating: bool,
+        front_zone_left: bool,
+        front_zone_right: bool,
+        rear_zone_left: bool,
+        rear_zone_right: bool,
+        target_temperature: float,
+    ) -> None:
+        """Apply climate settings atomically under the scheduler lock."""
+        with self._lock:
+            self._settings.window_heating = window_heating
+            self._settings.front_zone_left = front_zone_left
+            self._settings.front_zone_right = front_zone_right
+            self._settings.rear_zone_left = rear_zone_left
+            self._settings.rear_zone_right = rear_zone_right
+            self._settings.target_temperature = target_temperature
+            self._settings.clamp()
+
+    def settings_snapshot(self) -> CamperSettings:
+        """Return a consistent copy of current settings under the lock."""
+        with self._lock:
+            return self._settings.snapshot()
 
     def save(self, path: str) -> None:
         """Persist settings and timers to disk under the scheduler lock."""
