@@ -166,6 +166,7 @@ class CamperUI:
                     flask_login.login_user(
                         user, remember=bool(form.remember_me.data)
                     )
+                    LOG.info("User '%s' logged in", username)
                     next_url = flask.request.args.get("next") or ""
                     parsed = urllib.parse.urlsplit(next_url)
                     if parsed.scheme or parsed.netloc:
@@ -175,6 +176,7 @@ class CamperUI:
                     )
                 form.password.data = ""
                 time.sleep(1)
+                LOG.warning("Failed login attempt for user '%s'", username)
                 flask.flash("Unknown user or wrong password.", "danger")
             return flask.render_template("campermode/login.html", form=form)
 
@@ -238,6 +240,7 @@ class CamperUI:
                 endless=endless,
             )
             ok = plugin.scheduler.start_session(reason="manual")
+            LOG.info("Session start requested from UI (ok=%s)", ok)
             if ok:
                 plugin.save_settings()
                 flask.flash("Camper mode started.", "success")
@@ -250,6 +253,7 @@ class CamperUI:
 
         @self.app.route("/stop", methods=["POST"])
         def stop_session() -> WerkzeugResponse:
+            LOG.info("Session stop requested from UI")
             self._plugin.scheduler.stop_session(reason="manual")
             flask.flash("Camper mode stopped.", "info")
             return flask.redirect(flask.url_for("dashboard"))
@@ -303,6 +307,7 @@ class CamperUI:
                     target_temperature=target_temperature,
                 )
                 plugin.save_settings()
+                LOG.info("Climate settings updated from UI")
                 if plugin.state.active:
                     flask.flash(
                         "Settings saved. Zone settings take effect at the"
@@ -355,6 +360,12 @@ class CamperUI:
                     flask.flash("Timer limit reached (max 50).", "danger")
                     return flask.redirect(flask.url_for("timers"))
                 plugin.save_settings()
+                LOG.info(
+                    "Timer created: id=%s time=%s days=%s",
+                    timer.id,
+                    timer.time,
+                    days,
+                )
                 flask.flash("Timer created.", "success")
                 return flask.redirect(flask.url_for("timers"))
             return flask.render_template(
@@ -364,29 +375,37 @@ class CamperUI:
 
         @self.app.route("/timers/<timer_id>/delete", methods=["POST"])
         def timers_delete(timer_id: str) -> WerkzeugResponse:
+            if len(timer_id) > 64:
+                flask.abort(400)
             plugin = self._plugin
             removed = plugin.scheduler.delete_timer(timer_id)
             if removed:
                 plugin.save_settings()
+                LOG.info("Timer %s deleted from UI", timer_id)
                 flask.flash("Timer deleted.", "success")
             else:
+                LOG.warning("Delete requested for unknown timer: %s", timer_id)
                 flask.flash("Timer not found.", "danger")
             return flask.redirect(flask.url_for("timers"))
 
         @self.app.route("/timers/<timer_id>/toggle", methods=["POST"])
         def timers_toggle(timer_id: str) -> WerkzeugResponse:
+            if len(timer_id) > 64:
+                flask.abort(400)
             plugin = self._plugin
             found = plugin.scheduler.toggle_timer(timer_id)
             if found:
                 plugin.save_settings()
+                LOG.info("Timer %s toggled from UI", timer_id)
                 flask.flash("Timer updated.", "success")
             else:
+                LOG.warning("Toggle requested for unknown timer: %s", timer_id)
                 flask.flash("Timer not found.", "danger")
             return flask.redirect(flask.url_for("timers"))
 
         @self.app.route("/help")
         def help_page() -> str:
-            return "Help (Phase 8 pending)"
+            return flask.render_template("campermode/help.html")
 
     def start(self) -> None:
         """Start the web server in a daemon thread."""
@@ -396,6 +415,11 @@ class CamperUI:
             self.app,
             threaded=True,
             ssl_context=self._ssl_context,
+        )
+        LOG.info(
+            "CamperMode web server starting on %s:%d",
+            self._host,
+            self._port,
         )
         self._thread = threading.Thread(target=self.server.serve_forever)
         self._thread.name = "carconnectivity.plugins.campermode-webthread"
@@ -409,5 +433,6 @@ class CamperUI:
             and self._thread is not None
             and self._thread.is_alive()
         ):
+            LOG.info("CamperMode web server shutting down")
             self.server.shutdown()
             self._thread.join(timeout=5)

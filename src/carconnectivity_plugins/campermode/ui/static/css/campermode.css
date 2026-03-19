@@ -1,7 +1,7 @@
 /* CamperMode plugin styles */
 
 body {
-    padding-bottom: 80px;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
 }
 
 .form-signin {
@@ -60,4 +60,20 @@ body {
 .border-danger,
 .border-warning {
     border-width: 2px !important;
+}
+
+@media (max-width: 576px) {
+    .bottom-nav {
+        height: calc(64px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    .bottom-nav-item {
+        min-height: 48px;
+    }
+
+    .btn-interval {
+        min-height: 3rem;
+        font-size: 1rem;
+    }
 }

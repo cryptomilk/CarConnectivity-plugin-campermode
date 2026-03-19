@@ -429,9 +429,12 @@ def test_repeat_timer_stays_enabled_after_firing():
 
 
 def _start_session_at(sched: CamperScheduler, mono_time: float) -> None:
-    with patch(
-        "carconnectivity_plugins.campermode.scheduler.time_module.monotonic",
-        return_value=mono_time,
+    with (
+        patch(
+            "carconnectivity_plugins.campermode.scheduler.time_module.monotonic",
+            return_value=mono_time,
+        ),
+        sched._lock,
     ):
         sched._do_start_session("test")
 
@@ -643,3 +646,49 @@ def test_window_heating_not_changeable_skipped():
     sched._vehicle = vehicle
     sched._apply_climate_settings()  # must not raise
     # value should not have been set — assert no AttributeError was raised
+
+
+# ---------------------------------------------------------------------------
+# OFFLINE state handling
+# ---------------------------------------------------------------------------
+
+
+def test_start_when_offline_returns_false():
+    vehicle = make_vehicle(state=GenericVehicle.State.OFFLINE)
+    sched = make_scheduler(vehicle=vehicle)
+    assert sched.start_session() is False
+
+
+def test_vehicle_goes_offline_during_session_stops():
+    vehicle = make_vehicle()
+    sched = make_scheduler(vehicle=vehicle)
+    _start_session_at(sched, 0.0)
+    assert sched._state.active is True
+    vehicle.state.value = GenericVehicle.State.OFFLINE
+    _tick_at(sched, 10.0)
+    assert sched._state.active is False
+    assert sched._state.stopped_reason == "vehicle_offline"
+
+
+def test_vehicle_goes_offline_during_paused_stops():
+    vehicle = make_vehicle()
+    settings = make_settings(
+        cycle_duration_minutes=1, minutes_between_cycles=5
+    )
+    sched = make_scheduler(vehicle=vehicle, settings=settings)
+    _start_session_at(sched, 0.0)
+    _tick_at(sched, 181.0)  # past cycle (60s) + rate-limit (180s) → PAUSED
+    assert sched._state.current_phase == "paused"
+    vehicle.state.value = GenericVehicle.State.OFFLINE
+    _tick_at(sched, 182.0)
+    assert sched._state.active is False
+    assert sched._state.stopped_reason == "vehicle_offline"
+
+
+def test_start_with_offline_value_but_state_disabled_succeeds():
+    """Guard must be skipped when vehicle.state.enabled is False."""
+    vehicle = make_vehicle()
+    vehicle.state.enabled = False
+    vehicle.state.value = GenericVehicle.State.OFFLINE
+    sched = make_scheduler(vehicle=vehicle)
+    assert sched.start_session() is True

@@ -9,13 +9,13 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+from carconnectivity.vehicle import GenericVehicle
 from carconnectivity_plugins.campermode.models import PhaseState, save_data
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from carconnectivity.command_impl import ClimatizationStartStopCommand
-    from carconnectivity.vehicle import GenericVehicle
     from carconnectivity_plugins.campermode.models import (
         CamperSettings,
         CamperState,
@@ -212,7 +212,6 @@ class CamperScheduler:
         from carconnectivity.command_impl import (
             ClimatizationStartStopCommand,
         )
-        from carconnectivity.vehicle import GenericVehicle
 
         if self._state.active:
             LOG.warning("Session already active")
@@ -228,6 +227,13 @@ class CamperScheduler:
             and vehicle.state.value == GenericVehicle.State.DRIVING
         ):
             LOG.warning("Vehicle is driving — cannot start climatisation")
+            return False
+
+        if (
+            vehicle.state.enabled
+            and vehicle.state.value == GenericVehicle.State.OFFLINE
+        ):
+            LOG.warning("Vehicle is offline — cannot start climatisation")
             return False
 
         # Battery check
@@ -496,6 +502,17 @@ class CamperScheduler:
                 LOG.info("Session duration reached")
                 self._do_stop_session("duration_reached")
                 return
+
+        # Stop if vehicle went offline during session
+        vehicle = self._vehicle
+        if (
+            vehicle is not None
+            and vehicle.state.enabled
+            and vehicle.state.value == GenericVehicle.State.OFFLINE
+        ):
+            LOG.warning("Vehicle went offline during session, stopping")
+            self._do_stop_session("vehicle_offline")
+            return
 
         # Battery safety
         if (

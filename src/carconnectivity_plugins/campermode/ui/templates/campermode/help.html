@@ -1,0 +1,73 @@
+{% extends "campermode/base.html" %}
+
+{% block title %}Help — CamperMode{% endblock %}
+
+{% block content %}
+<div class="container py-3">
+
+  <div class="card mb-3">
+    <div class="card-header fw-semibold">How It Works</div>
+    <div class="card-body">
+      <p>CamperMode keeps your vehicle cabin comfortable overnight by cycling
+      the built-in climatisation on and off automatically.</p>
+      <ul class="mb-0">
+        <li><strong>HEATING</strong> phase: the climatisation runs for one
+        cycle (default 30&nbsp;min) per VW system limit.</li>
+        <li><strong>PAUSED</strong> phase: the system waits for the configured
+        pause duration before starting the next cycle.</li>
+        <li>Sessions start either manually from the dashboard or automatically
+        via a configured timer.</li>
+        <li>Each VW climatisation call lasts up to 30&nbsp;minutes; CamperMode
+        re-issues the command at the start of every new cycle.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header fw-semibold">Settings Reference</div>
+    <div class="card-body">
+      <dl class="mb-0">
+        <dt>Battery threshold</dt>
+        <dd>Session will not start (or will stop) when the battery is below
+        this level.</dd>
+        <dt>Pause between cycles</dt>
+        <dd>Minutes the system waits between heating cycles.
+        Set to 0 for continuous operation.</dd>
+        <dt>Total duration / Endless</dt>
+        <dd>Maximum session length in minutes. Enable <em>Endless</em> to run
+        indefinitely until stopped manually.</dd>
+        <dt>Target temperature</dt>
+        <dd>Desired cabin temperature (15.5–30.0&nbsp;°C).</dd>
+        <dt>Climate zones</dt>
+        <dd>Enable window heating and individual seat-heating zones
+        (requires the Volkswagen connector).</dd>
+        <dt>Timers</dt>
+        <dd>Schedule automatic session starts by time and day of week.
+        One-time timers disable themselves after firing.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header fw-semibold">Safety &amp; Battery</div>
+    <div class="card-body">
+      <div class="alert alert-warning mb-3" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+        Running climatisation overnight draws significant battery power.
+        Use a conservative battery threshold to avoid a flat battery.
+      </div>
+      <ul class="mb-0">
+        <li>Set the battery threshold to at least 20&nbsp;% to preserve enough
+        charge to start the engine.</li>
+        <li>Window heating and seat heating zones increase power consumption
+        beyond base climatisation.</li>
+        <li>The scheduler rate-limits START commands to one every
+        3&nbsp;minutes to protect the vehicle's telematics hardware.</li>
+        <li>If the vehicle goes offline or starts driving, the active session
+        is stopped automatically.</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
