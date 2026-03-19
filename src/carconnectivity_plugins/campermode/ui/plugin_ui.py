@@ -284,7 +284,7 @@ class CamperUI:
                 }
             )
 
-        _valid_intervals: frozenset[int] = frozenset({0, 30, 60, 90})
+        _valid_intervals: frozenset[int] = frozenset({0, 30, 45, 60, 75, 90})
 
         @self.app.route("/api/settings", methods=["POST"])
         def api_settings() -> WerkzeugResponse:
@@ -305,7 +305,7 @@ class CamperUI:
                 return flask.make_response(
                     flask.jsonify({"error": "Invalid parameters"}), 400
                 )
-            if not (0 <= min_battery_level <= 100):
+            if not (10 <= min_battery_level <= 90):
                 return flask.make_response(
                     flask.jsonify({"error": "min_battery_level out of range"}),
                     400,

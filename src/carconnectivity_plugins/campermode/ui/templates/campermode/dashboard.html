@@ -80,14 +80,14 @@
         </label>
         <input type="range" class="form-range" id="min_battery_level"
                name="min_battery_level"
-               min="5" max="100" step="5"
+               min="10" max="90" step="5"
                value="{{ settings.min_battery_level }}">
       </div>
 
       <div class="mb-3">
         <label class="form-label">Pause between cycles</label>
         <div class="btn-group d-flex" role="group" aria-label="Cycle interval">
-          {% for mins in [0, 30, 60, 90] %}
+          {% for mins in [0, 30, 45, 60, 75, 90] %}
           <input type="radio" class="btn-check" name="minutes_between_cycles"
                  id="interval_{{ mins }}" value="{{ mins }}"
                  {% if settings.minutes_between_cycles == mins %}checked{% endif %}>

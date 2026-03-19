@@ -78,7 +78,7 @@ class CamperSettings:
 
     def clamp(self) -> None:
         """Clamp all numeric fields to their valid ranges."""
-        self.min_battery_level = max(0, min(100, self.min_battery_level))
+        self.min_battery_level = max(10, min(90, self.min_battery_level))
         self.cycle_duration_minutes = max(1, self.cycle_duration_minutes)
         self.minutes_between_cycles = max(0, self.minutes_between_cycles)
         self.total_duration_minutes = max(1, self.total_duration_minutes)

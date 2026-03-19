@@ -153,14 +153,14 @@ def test_settings_from_dict_missing_keys_use_defaults():
     assert s.target_temperature == pytest.approx(22.0)
 
 
-def test_settings_clamps_battery_level_above_100():
+def test_settings_clamps_battery_level_above_90():
     s = CamperSettings(min_battery_level=150)
-    assert s.min_battery_level == 100
+    assert s.min_battery_level == 90
 
 
-def test_settings_clamps_battery_level_below_0():
+def test_settings_clamps_battery_level_below_10():
     s = CamperSettings(min_battery_level=-5)
-    assert s.min_battery_level == 0
+    assert s.min_battery_level == 10
 
 
 def test_settings_clamps_cycle_duration_to_minimum_1():
@@ -192,7 +192,7 @@ def test_settings_from_dict_clamps_invalid_values():
         }
     )
     assert s.cycle_duration_minutes == 1
-    assert s.min_battery_level == 100
+    assert s.min_battery_level == 90
     assert s.target_temperature == pytest.approx(15.5)
 
 
