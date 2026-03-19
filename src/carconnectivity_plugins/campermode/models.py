@@ -80,6 +80,17 @@ class CamperSettings:
         # VW climate system accepts 15.5-30.0 °C
         self.target_temperature = max(15.5, min(30.0, self.target_temperature))
 
+    @property
+    def has_active_heating(self) -> bool:
+        """True if any window or seat heating zone is enabled."""
+        return (
+            self.window_heating
+            or self.front_zone_left
+            or self.front_zone_right
+            or self.rear_zone_left
+            or self.rear_zone_right
+        )
+
     def to_dict(self) -> dict[str, object]:
         return {
             "min_battery_level": self.min_battery_level,

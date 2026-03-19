@@ -8,7 +8,7 @@ import time as time_module
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from carconnectivity_plugins.campermode.models import PhaseState
+from carconnectivity_plugins.campermode.models import PhaseState, save_data
 
 if TYPE_CHECKING:
     from carconnectivity.command_impl import ClimatizationStartStopCommand
@@ -91,6 +91,27 @@ class CamperScheduler:
         if self._thread is not None:
             self._thread.join(timeout=5)
         LOG.debug("CamperScheduler stopped")
+
+    def update_settings(
+        self,
+        *,
+        min_battery_level: int,
+        minutes_between_cycles: int,
+        total_duration_minutes: int,
+        endless: bool,
+    ) -> None:
+        """Apply dashboard settings atomically under the scheduler lock."""
+        with self._lock:
+            self._settings.min_battery_level = min_battery_level
+            self._settings.minutes_between_cycles = minutes_between_cycles
+            self._settings.total_duration_minutes = total_duration_minutes
+            self._settings.endless = endless
+            self._settings.__post_init__()
+
+    def save(self, path: str) -> None:
+        """Persist settings and timers to disk under the scheduler lock."""
+        with self._lock:
+            save_data(path, self._settings, self._timers)
 
     def start_session(self, reason: str = "manual") -> bool:
         """Start a new camper session. Returns True on success."""

@@ -177,6 +177,10 @@ class Plugin(BasePlugin):
 
     @property
     def settings(self) -> CamperSettings:
+        # Returns the live object — read-only outside the scheduler.
+        # To mutate settings safely use scheduler.update_settings(), which
+        # holds the scheduler lock and prevents races with the scheduler
+        # thread.
         return self._settings
 
     @property
@@ -188,6 +192,10 @@ class Plugin(BasePlugin):
         # Return a shallow copy so callers cannot structurally modify the
         # internal list that the scheduler iterates under its lock.
         return list(self._timers)
+
+    def save_settings(self) -> None:
+        """Persist current settings and timers to disk (thread-safe)."""
+        self._scheduler.save(self._data_file)
 
     def get_version(self) -> str:
         return "0.1.0.dev0"

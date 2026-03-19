@@ -128,6 +128,12 @@ class CamperUI:
                 return None
             if flask_login.current_user.is_authenticated:
                 return None
+            # Return JSON 401 for API requests so JS polling can detect
+            # the auth state rather than silently receiving an HTML redirect.
+            if flask.request.path.startswith("/api/"):
+                return flask.make_response(
+                    flask.jsonify({"error": "Unauthorized"}), 401
+                )
             return flask.redirect(
                 flask.url_for("login", next=flask.request.path)
             )
@@ -160,7 +166,9 @@ class CamperUI:
                     parsed = urllib.parse.urlsplit(next_url)
                     if parsed.scheme or parsed.netloc:
                         next_url = flask.url_for("dashboard")
-                    return flask.redirect(next_url or flask.url_for("dashboard"))
+                    return flask.redirect(
+                        next_url or flask.url_for("dashboard")
+                    )
                 form.password.data = ""
                 time.sleep(1)
                 flask.flash("Unknown user or wrong password.", "danger")
@@ -179,11 +187,80 @@ class CamperUI:
         def healthcheck() -> str:
             return "ok"
 
-        # ── Stub routes (expanded in phases 5-8) ─────────────────────
+        # ── Dashboard ─────────────────────────────────────────────────
 
         @self.app.route("/")
-        def dashboard() -> str:
-            return "Dashboard (Phase 5 pending)"
+        def dashboard() -> WerkzeugResponse | str:
+            plugin = self._plugin
+            s = plugin.settings
+            return flask.render_template(
+                "campermode/dashboard.html",
+                settings=s,
+                state=plugin.state,
+                show_warning=s.has_active_heating,
+            )
+
+        @self.app.route("/start", methods=["POST"])
+        def start_session() -> WerkzeugResponse:
+            plugin = self._plugin
+            s = plugin.settings
+            try:
+                min_battery_level = int(
+                    flask.request.form.get(
+                        "min_battery_level", s.min_battery_level
+                    )
+                )
+                minutes_between_cycles = int(
+                    flask.request.form.get(
+                        "minutes_between_cycles", s.minutes_between_cycles
+                    )
+                )
+                endless = "endless" in flask.request.form
+                total_duration_minutes = s.total_duration_minutes
+                if not endless:
+                    total_duration_minutes = int(
+                        flask.request.form.get(
+                            "total_duration_minutes",
+                            s.total_duration_minutes,
+                        )
+                    )
+            except (ValueError, TypeError):
+                flask.flash("Invalid form values.", "danger")
+                return flask.redirect(flask.url_for("dashboard"))
+            plugin.scheduler.update_settings(
+                min_battery_level=min_battery_level,
+                minutes_between_cycles=minutes_between_cycles,
+                total_duration_minutes=total_duration_minutes,
+                endless=endless,
+            )
+            ok = plugin.scheduler.start_session(reason="manual")
+            if ok:
+                plugin.save_settings()
+                flask.flash("Camper mode started.", "success")
+            else:
+                flask.flash(
+                    "Could not start camper mode. Check logs for details.",
+                    "danger",
+                )
+            return flask.redirect(flask.url_for("dashboard"))
+
+        @self.app.route("/stop", methods=["POST"])
+        def stop_session() -> WerkzeugResponse:
+            self._plugin.scheduler.stop_session(reason="manual")
+            flask.flash("Camper mode stopped.", "info")
+            return flask.redirect(flask.url_for("dashboard"))
+
+        @self.app.route("/api/status")
+        def api_status() -> WerkzeugResponse:
+            plugin = self._plugin
+            s = plugin.settings
+            return flask.jsonify(
+                {
+                    "state": plugin.state.to_dict(),
+                    "settings": s.to_dict(),
+                    "show_warning": s.has_active_heating,
+                }
+            )
 
         @self.app.route("/settings")
         def settings() -> str:
@@ -200,8 +277,11 @@ class CamperUI:
     def start(self) -> None:
         """Start the web server in a daemon thread."""
         self.server = make_server(
-            self._host, self._port, self.app,
-            threaded=True, ssl_context=self._ssl_context,
+            self._host,
+            self._port,
+            self.app,
+            threaded=True,
+            ssl_context=self._ssl_context,
         )
         self._thread = threading.Thread(target=self.server.serve_forever)
         self._thread.name = "carconnectivity.plugins.campermode-webthread"

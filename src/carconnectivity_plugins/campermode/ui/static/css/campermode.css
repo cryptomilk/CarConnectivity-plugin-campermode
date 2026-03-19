@@ -42,3 +42,22 @@ body {
     font-size: 1.4rem;
     margin-bottom: 2px;
 }
+
+/* Dashboard styles */
+.form-range {
+    height: 2rem;
+}
+
+.btn-interval {
+    min-height: 2.5rem;
+    font-size: 0.9rem;
+}
+
+.status-phase {
+    font-size: 1.4rem;
+}
+
+.border-danger,
+.border-warning {
+    border-width: 2px !important;
+}
