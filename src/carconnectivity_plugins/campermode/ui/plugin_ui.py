@@ -11,6 +11,7 @@ import threading
 import time
 import urllib.parse
 import uuid
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 import flask
@@ -21,6 +22,8 @@ from flask_wtf.csrf import CSRFProtect
 from werkzeug.serving import make_server
 from wtforms import BooleanField, PasswordField, StringField, SubmitField
 from wtforms.validators import Length
+
+from carconnectivity_plugins.campermode.models import CamperTimer
 
 if TYPE_CHECKING:
     from werkzeug.serving import BaseWSGIServer, _TSSLContextArg
@@ -315,9 +318,71 @@ class CamperUI:
                 current_settings=s,
             )
 
-        @self.app.route("/timers")
-        def timers() -> str:
-            return "Timers (Phase 7 pending)"
+        @self.app.route("/timers", methods=["GET", "POST"])
+        def timers() -> WerkzeugResponse | str:
+            plugin = self._plugin
+            if flask.request.method == "POST":
+                time_str = flask.request.form.get("time", "")
+                try:
+                    timer_time = datetime.strptime(time_str, "%H:%M").time()
+                except ValueError:
+                    flask.flash("Invalid time format.", "danger")
+                    return flask.redirect(flask.url_for("timers"))
+                days_raw = flask.request.form.getlist("days_of_week")
+                try:
+                    days = [int(d) for d in days_raw]
+                except ValueError:
+                    flask.flash("Invalid days of week.", "danger")
+                    return flask.redirect(flask.url_for("timers"))
+                if not days:
+                    flask.flash(
+                        "Select at least one day of the week.", "danger"
+                    )
+                    return flask.redirect(flask.url_for("timers"))
+                if not all(0 <= d <= 6 for d in days):
+                    flask.flash("Invalid day of week value.", "danger")
+                    return flask.redirect(flask.url_for("timers"))
+                repeat_weekly = "repeat_weekly" in flask.request.form
+                timer = CamperTimer(
+                    id=uuid.uuid4().hex,
+                    time=timer_time,
+                    days_of_week=days,
+                    repeat_weekly=repeat_weekly,
+                    enabled=True,
+                    created_at=datetime.now(tz=timezone.utc),
+                )
+                if not plugin.scheduler.add_timer(timer):
+                    flask.flash("Timer limit reached (max 50).", "danger")
+                    return flask.redirect(flask.url_for("timers"))
+                plugin.save_settings()
+                flask.flash("Timer created.", "success")
+                return flask.redirect(flask.url_for("timers"))
+            return flask.render_template(
+                "campermode/timers.html",
+                timers=plugin.timers,
+            )
+
+        @self.app.route("/timers/<timer_id>/delete", methods=["POST"])
+        def timers_delete(timer_id: str) -> WerkzeugResponse:
+            plugin = self._plugin
+            removed = plugin.scheduler.delete_timer(timer_id)
+            if removed:
+                plugin.save_settings()
+                flask.flash("Timer deleted.", "success")
+            else:
+                flask.flash("Timer not found.", "danger")
+            return flask.redirect(flask.url_for("timers"))
+
+        @self.app.route("/timers/<timer_id>/toggle", methods=["POST"])
+        def timers_toggle(timer_id: str) -> WerkzeugResponse:
+            plugin = self._plugin
+            found = plugin.scheduler.toggle_timer(timer_id)
+            if found:
+                plugin.save_settings()
+                flask.flash("Timer updated.", "success")
+            else:
+                flask.flash("Timer not found.", "danger")
+            return flask.redirect(flask.url_for("timers"))
 
         @self.app.route("/help")
         def help_page() -> str:

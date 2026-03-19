@@ -5,12 +5,15 @@ from __future__ import annotations
 import logging
 import threading
 import time as time_module
+from dataclasses import replace
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from carconnectivity_plugins.campermode.models import PhaseState, save_data
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from carconnectivity.command_impl import ClimatizationStartStopCommand
     from carconnectivity.vehicle import GenericVehicle
     from carconnectivity_plugins.campermode.models import (
@@ -23,6 +26,8 @@ LOG: logging.Logger = logging.getLogger("carconnectivity.plugins.campermode")
 
 # Minimum seconds between any two climatisation commands (rate-limit guard)
 _MIN_CMD_INTERVAL: int = 180
+# Hard cap on stored timers to prevent resource exhaustion
+_MAX_TIMERS: int = 50
 
 
 class CamperScheduler:
@@ -34,15 +39,23 @@ class CamperScheduler:
         settings: CamperSettings,
         state: CamperState,
         timers: list[CamperTimer],
+        save_callback: Callable[[], None] | None = None,
     ) -> None:
         self._settings = settings
         self._state = state
         # _timers is guarded by _lock. External callers that need a snapshot
-        # should use Plugin.timers (returns a copy). Mutations to individual
-        # CamperTimer objects must also be done while holding _lock.
+        # should use Plugin.timers (calls timers_snapshot()). Mutations to
+        # individual CamperTimer objects must also be done while holding _lock.
         self._timers = timers
         self._vehicle: GenericVehicle | None = None
         self._battery_level: int | None = None
+
+        # Called outside the lock when a one-time timer fires and
+        # must be persisted immediately.
+        self._save_callback = save_callback
+        # Set by _check_timers when a one-time timer is disabled; consumed
+        # and reset by _tick outside the lock.
+        self._needs_save = False
 
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
@@ -128,15 +141,58 @@ class CamperScheduler:
             self._settings.target_temperature = target_temperature
             self._settings.clamp()
 
+    def add_timer(self, timer: CamperTimer) -> bool:
+        """Add a new timer. Returns False if the cap of 50 is reached."""
+        with self._lock:
+            if len(self._timers) >= _MAX_TIMERS:
+                return False
+            self._timers.append(timer)
+            return True
+
+    def delete_timer(self, timer_id: str) -> bool:
+        """Remove a timer by ID. Returns True if found and removed."""
+        with self._lock:
+            for i, t in enumerate(self._timers):
+                if t.id == timer_id:
+                    self._timers.pop(i)
+                    return True
+            return False
+
+    def toggle_timer(self, timer_id: str) -> bool:
+        """Toggle a timer's enabled state. Returns True if found."""
+        with self._lock:
+            for t in self._timers:
+                if t.id == timer_id:
+                    t.enabled = not t.enabled
+                    return True
+            return False
+
+    def timers_snapshot(self) -> list[CamperTimer]:
+        """Return independent copies of all timers under the lock."""
+        with self._lock:
+            return [
+                replace(t, days_of_week=list(t.days_of_week))
+                for t in self._timers
+            ]
+
     def settings_snapshot(self) -> CamperSettings:
         """Return a consistent copy of current settings under the lock."""
         with self._lock:
             return self._settings.snapshot()
 
     def save(self, path: str) -> None:
-        """Persist settings and timers to disk under the scheduler lock."""
+        """Persist settings and timers to disk.
+
+        Takes a snapshot under the lock, then writes to disk without holding
+        it so that file I/O stalls do not block the scheduler tick.
+        """
         with self._lock:
-            save_data(path, self._settings, self._timers)
+            settings_snap = self._settings.snapshot()
+            timers_snap = [
+                replace(t, days_of_week=list(t.days_of_week))
+                for t in self._timers
+            ]
+        save_data(path, settings_snap, timers_snap)
 
     def start_session(self, reason: str = "manual") -> bool:
         """Start a new camper session. Returns True on success."""
@@ -357,7 +413,11 @@ class CamperScheduler:
             elif tick % 3 == 0:
                 # Evaluate timers every ~30 s
                 start_timer = self._check_timers()
+            needs_save = self._needs_save
+            self._needs_save = False
 
+        if needs_save and self._save_callback is not None:
+            self._save_callback()
         if start_timer:
             self.start_session(reason="timer")
 
@@ -400,6 +460,8 @@ class CamperScheduler:
             timer.last_fired_at = now
             if not timer.repeat_weekly:
                 timer.enabled = False
+                # Signal _tick to persist the disabled state outside the lock
+                self._needs_save = True
             return True
         return False
 

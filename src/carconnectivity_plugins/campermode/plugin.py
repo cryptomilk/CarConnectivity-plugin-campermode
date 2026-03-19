@@ -59,7 +59,10 @@ class Plugin(BasePlugin):
         self._settings, self._timers = load_data(self._data_file)
         self._state = CamperState()
         self._scheduler = CamperScheduler(
-            self._settings, self._state, self._timers
+            self._settings,
+            self._state,
+            self._timers,
+            save_callback=self.save_settings,
         )
         self._observed_drives: list[ElectricDrive] = []
 
@@ -185,9 +188,8 @@ class Plugin(BasePlugin):
 
     @property
     def timers(self) -> list[CamperTimer]:
-        # Return a shallow copy so callers cannot structurally modify the
-        # internal list that the scheduler iterates under its lock.
-        return list(self._timers)
+        # Return independent copies so callers cannot mutate scheduler state.
+        return self._scheduler.timers_snapshot()
 
     def save_settings(self) -> None:
         """Persist current settings and timers to disk (thread-safe)."""

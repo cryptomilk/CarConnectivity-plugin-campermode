@@ -49,7 +49,11 @@ class CamperTimer:
         return cls(
             id=str(data["id"]),
             time=time.fromisoformat(str(data["time"])),
-            days_of_week=[int(d) for d in data["days_of_week"]],  # type: ignore[arg-type]
+            days_of_week=[
+                int(d)
+                for d in data["days_of_week"]  # type: ignore[arg-type]
+                if 0 <= int(d) <= 6
+            ],
             repeat_weekly=bool(data["repeat_weekly"]),
             enabled=bool(data["enabled"]),
             created_at=datetime.fromisoformat(str(data["created_at"])),
