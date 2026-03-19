@@ -75,7 +75,9 @@ class CamperScheduler:
     def start(self) -> None:
         """Start the scheduler background thread."""
         if self._thread is not None and self._thread.is_alive():
-            LOG.warning("Scheduler already running — stopping previous thread first")
+            LOG.warning(
+                "Scheduler already running — stopping previous thread first"
+            )
             self.stop()
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._loop, daemon=True)
@@ -205,24 +207,23 @@ class CamperScheduler:
 
             if isinstance(
                 self._vehicle.climatization, VolkswagenClimatization
-            ):
-                if hasattr(clima_settings, "front_zone_left_enabled"):
-                    if clima_settings.front_zone_left_enabled.is_changeable:
-                        clima_settings.front_zone_left_enabled.value = (
-                            self._settings.front_zone_left
-                        )
-                    if clima_settings.front_zone_right_enabled.is_changeable:
-                        clima_settings.front_zone_right_enabled.value = (
-                            self._settings.front_zone_right
-                        )
-                    if clima_settings.rear_zone_left_enabled.is_changeable:
-                        clima_settings.rear_zone_left_enabled.value = (
-                            self._settings.rear_zone_left
-                        )
-                    if clima_settings.rear_zone_right_enabled.is_changeable:
-                        clima_settings.rear_zone_right_enabled.value = (
-                            self._settings.rear_zone_right
-                        )
+            ) and hasattr(clima_settings, "front_zone_left_enabled"):
+                if clima_settings.front_zone_left_enabled.is_changeable:  # type: ignore[attr-defined]
+                    clima_settings.front_zone_left_enabled.value = (  # type: ignore[attr-defined]
+                        self._settings.front_zone_left
+                    )
+                if clima_settings.front_zone_right_enabled.is_changeable:  # type: ignore[attr-defined]
+                    clima_settings.front_zone_right_enabled.value = (  # type: ignore[attr-defined]
+                        self._settings.front_zone_right
+                    )
+                if clima_settings.rear_zone_left_enabled.is_changeable:  # type: ignore[attr-defined]
+                    clima_settings.rear_zone_left_enabled.value = (  # type: ignore[attr-defined]
+                        self._settings.rear_zone_left
+                    )
+                if clima_settings.rear_zone_right_enabled.is_changeable:  # type: ignore[attr-defined]
+                    clima_settings.rear_zone_right_enabled.value = (  # type: ignore[attr-defined]
+                        self._settings.rear_zone_right
+                    )
         except ImportError:
             pass
         except Exception as exc:
@@ -246,7 +247,7 @@ class CamperScheduler:
             return False
 
         # Rate-limit guard applies to START only; STOP must always be allowed
-        # so that a running heater can be halted even within the throttle window.
+        # so a running heater can be halted even within the throttle window.
         now = time_module.monotonic()
         if (
             command == ClimatizationStartStopCommand.Command.START
@@ -329,7 +330,9 @@ class CamperScheduler:
             # Prevent repeated firing across multiple evaluation cycles that
             # fall inside the ±60 s match window.
             if timer.last_fired_at is not None:
-                elapsed_since_fire = (now - timer.last_fired_at).total_seconds()
+                elapsed_since_fire = (
+                    now - timer.last_fired_at
+                ).total_seconds()
                 if elapsed_since_fire < 120:
                     continue
 

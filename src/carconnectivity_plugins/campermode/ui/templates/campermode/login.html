@@ -1,0 +1,10 @@
+{% extends 'campermode/base.html' %}
+
+{% block title %}Login — CamperMode{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  {% from 'bootstrap5/form.html' import render_form %}
+  {{ render_form(form=form, extra_classes='form-signin') }}
+</div>
+{% endblock %}

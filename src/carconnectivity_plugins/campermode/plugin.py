@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from carconnectivity.attributes import LevelAttribute
 from carconnectivity.drive import ElectricDrive
+from carconnectivity.errors import ConfigurationError
 from carconnectivity.observable import Observable
 from carconnectivity.vehicle import GenericVehicle
 from carconnectivity_plugins.base.plugin import BasePlugin
@@ -18,8 +19,11 @@ from carconnectivity_plugins.campermode.models import (
     save_data,
 )
 from carconnectivity_plugins.campermode.scheduler import CamperScheduler
+from carconnectivity_plugins.campermode.ui.plugin_ui import CamperUI
 
 if TYPE_CHECKING:
+    from werkzeug.serving import _TSSLContextArg
+
     from carconnectivity.carconnectivity import CarConnectivity
 
 LOG: logging.Logger = logging.getLogger("carconnectivity.plugins.campermode")
@@ -58,6 +62,57 @@ class Plugin(BasePlugin):
             self._settings, self._state, self._timers
         )
         self._observed_drives: list[ElectricDrive] = []
+
+        # ── Web server config ─────────────────────────────────────────
+        host: str = str(config.get("host", "0.0.0.0"))  # nosec
+        port: int = int(config.get("port", 4001))
+        if port < 1 or port > 65535:
+            raise ConfigurationError(
+                'Invalid port specified in config ("port" out of range,'
+                " must be 1-65535)"
+            )
+
+        users: dict[str, str] = {}
+        if (
+            "username" in config
+            and config["username"] is not None
+            and "password" in config
+            and config["password"] is not None
+        ):
+            users[config["username"]] = config["password"]
+        if "users" in config and config["users"] is not None:
+            for user in config["users"]:
+                if "username" in user and "password" in user:
+                    users[user["username"]] = user["password"]
+
+        ssl_context: _TSSLContextArg | None = None
+        if config.get("https"):
+            if (
+                "ssl_certificate_file" in config
+                and "ssl_certificate_key_file" in config
+            ):
+                ssl_context = (
+                    config["ssl_certificate_file"],
+                    config["ssl_certificate_key_file"],
+                )
+            else:
+                ssl_context = "adhoc"
+
+        secret_key: str | None = (
+            str(config["secret_key"])
+            if "secret_key" in config and config["secret_key"] is not None
+            else None
+        )
+
+        self._ui = CamperUI(
+            plugin=self,
+            host=host,
+            port=port,
+            users=users or None,
+            ssl_context=ssl_context,
+            secret_key=secret_key,
+        )
+
         LOG.info("CamperMode plugin initialised (id=%s)", plugin_id)
 
     def startup(self) -> None:
@@ -70,6 +125,7 @@ class Plugin(BasePlugin):
         for vehicle in self.car_connectivity.garage.list_vehicles():
             self._try_connect_vehicle(vehicle)
         self._scheduler.start()
+        self._ui.start()
         self.healthy._set_value(value=True)  # pylint: disable=protected-access
         LOG.debug("Starting CamperMode plugin done")
         return super().startup()
@@ -106,6 +162,7 @@ class Plugin(BasePlugin):
 
     def shutdown(self) -> None:
         LOG.info("Shutting down CamperMode plugin")
+        self._ui.stop()
         self._scheduler.stop_session(reason="shutdown")
         self.car_connectivity.garage.remove_observer(self._on_vehicle_added)
         for drive in self._observed_drives:

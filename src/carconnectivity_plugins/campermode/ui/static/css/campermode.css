@@ -1,0 +1,44 @@
+/* CamperMode plugin styles */
+
+body {
+    padding-bottom: 80px;
+}
+
+.form-signin {
+    max-width: 330px;
+    margin: 0 auto;
+}
+
+/* Bottom navigation */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    background-color: #212529;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1030;
+}
+
+.bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: #adb5bd;
+    font-size: 0.7rem;
+    flex: 1;
+    padding: 8px 0;
+}
+
+.bottom-nav-item.active {
+    color: #0d6efd;
+}
+
+.bottom-nav-item i {
+    font-size: 1.4rem;
+    margin-bottom: 2px;
+}

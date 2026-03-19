@@ -68,7 +68,8 @@ def test_timer_time_serialized_as_iso():
 
 
 def test_timer_from_dict_string_days_of_week():
-    """days_of_week elements are cast to int even when JSON delivers strings."""
+    """days_of_week elements are cast to int even when JSON delivers
+    strings."""
     raw = {
         "id": "x",
         "time": "08:00:00",
@@ -184,7 +185,11 @@ def test_settings_clamps_temperature_above_max():
 
 def test_settings_from_dict_clamps_invalid_values():
     s = CamperSettings.from_dict(
-        {"cycle_duration_minutes": 0, "min_battery_level": 200, "target_temperature": 0.0}
+        {
+            "cycle_duration_minutes": 0,
+            "min_battery_level": 200,
+            "target_temperature": 0.0,
+        }
     )
     assert s.cycle_duration_minutes == 1
     assert s.min_battery_level == 100

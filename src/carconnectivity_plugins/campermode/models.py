@@ -77,7 +77,7 @@ class CamperSettings:
         self.cycle_duration_minutes = max(1, self.cycle_duration_minutes)
         self.minutes_between_cycles = max(0, self.minutes_between_cycles)
         self.total_duration_minutes = max(1, self.total_duration_minutes)
-        # VW climate system accepts 15.5–30.0 °C
+        # VW climate system accepts 15.5-30.0 °C
         self.target_temperature = max(15.5, min(30.0, self.target_temperature))
 
     def to_dict(self) -> dict[str, object]:

@@ -1,0 +1,16 @@
+{% extends 'campermode/base.html' %}
+
+{% block title %}Account — CamperMode{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Account</h2>
+  {% if current_user.is_authenticated %}
+  <p>Logged in as <strong>{{ current_user.get_id() }}</strong>.</p>
+  <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary">Logout</a>
+  {% else %}
+  <p>You are not logged in.</p>
+  <a href="{{ url_for('login') }}" class="btn btn-primary">Login</a>
+  {% endif %}
+</div>
+{% endblock %}

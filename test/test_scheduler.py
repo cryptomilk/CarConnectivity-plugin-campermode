@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import threading
-import time
 from datetime import datetime
 from datetime import time as dtime
 from unittest.mock import MagicMock, patch
@@ -360,7 +359,8 @@ def test_midnight_wrap_does_not_fire_on_wrong_day():
 
 
 def test_timer_does_not_fire_twice_within_120s():
-    """last_fired_at prevents re-triggering within the 2-minute match window."""
+    """last_fired_at prevents re-triggering within the 2-minute match
+    window."""
     timer = make_timer(timer_time=dtime(22, 30), days=list(range(7)))
     sched = make_scheduler(timers=[timer])
     now = _make_datetime(weekday=0, hour=22, minute=30)
@@ -437,10 +437,13 @@ def _start_session_at(sched: CamperScheduler, mono_time: float) -> None:
 
 
 def _tick_at(sched: CamperScheduler, mono_time: float) -> None:
-    with patch(
-        "carconnectivity_plugins.campermode.scheduler.time_module.monotonic",
-        return_value=mono_time,
-    ), sched._lock:
+    with (
+        patch(
+            "carconnectivity_plugins.campermode.scheduler.time_module.monotonic",
+            return_value=mono_time,
+        ),
+        sched._lock,
+    ):
         sched._manage_session()
 
 
