@@ -1,0 +1,23 @@
+{
+  "carConnectivity": {
+    "connectors": [
+      {
+        "type": "volkswagen",
+        "config": {
+          "username": "YOUR_VOLKSWAGEN_ID_EMAIL",
+          "password": "YOUR_VOLKSWAGEN_ID_PASSWORD"
+        }
+      }
+    ],
+    "plugins": [
+      {
+        "type": "campermode",
+        "config": {
+          "host": "0.0.0.0",
+          "port": 4001,
+          "data_file": "/data/campermode.json"
+        }
+      }
+    ]
+  }
+}

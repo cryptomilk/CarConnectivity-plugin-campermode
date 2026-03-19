@@ -1,0 +1,16 @@
+services:
+  campermode:
+    build:
+      context: .
+      dockerfile: Containerfile
+    ports:
+      - "4001:4001"
+    volumes:
+      # Mount your carconnectivity config (read-only)
+      - ./config:/config:ro,z
+      # Persistent volume for campermode settings and timers
+      - campermode-data:/data
+    restart: unless-stopped
+
+volumes:
+  campermode-data:
