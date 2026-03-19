@@ -107,7 +107,7 @@
 
         if (durationSlider && durationLabel) {
             durationSlider.addEventListener("input", function () {
-                durationLabel.textContent = this.value;
+                durationLabel.textContent = parseFloat((parseInt(this.value, 10) / 60).toFixed(1));
                 editGeneration++;
                 userEdited = true;
                 scheduleSave();
@@ -154,7 +154,7 @@
             durationSlider.disabled = settings.endless;
             if (!settings.endless) {
                 durationSlider.value = settings.total_duration_minutes;
-                durationLabel.textContent = settings.total_duration_minutes;
+                durationLabel.textContent = parseFloat((settings.total_duration_minutes / 60).toFixed(1));
             }
         }
     }

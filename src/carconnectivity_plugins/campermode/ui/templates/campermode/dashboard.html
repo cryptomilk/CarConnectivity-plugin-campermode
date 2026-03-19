@@ -102,7 +102,7 @@
       <div class="mb-3">
         <label for="total_duration_minutes" class="form-label">
           Total duration:
-          <strong><span id="duration-label">{{ settings.total_duration_minutes }}</span> min</strong>
+          <strong><span id="duration-label">{{ (settings.total_duration_minutes / 60) | round(1) | string | replace('.0', '') }}</span> h</strong>
         </label>
         <input type="range" class="form-range" id="total_duration_minutes"
                name="total_duration_minutes"
