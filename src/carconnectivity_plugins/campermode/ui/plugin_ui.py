@@ -284,6 +284,53 @@ class CamperUI:
                 }
             )
 
+        _valid_intervals: frozenset[int] = frozenset({0, 30, 60, 90})
+
+        @self.app.route("/api/settings", methods=["POST"])
+        def api_settings() -> WerkzeugResponse:
+            plugin = self._plugin
+            data = flask.request.get_json(silent=True)
+            if not isinstance(data, dict):
+                return flask.make_response(
+                    flask.jsonify({"error": "Invalid JSON"}), 400
+                )
+            try:
+                min_battery_level = int(data["min_battery_level"])
+                minutes_between_cycles = int(data["minutes_between_cycles"])
+                total_duration_minutes = int(data["total_duration_minutes"])
+                endless = data["endless"]
+                if not isinstance(endless, bool):
+                    raise TypeError("endless must be a boolean")
+            except (KeyError, ValueError, TypeError):
+                return flask.make_response(
+                    flask.jsonify({"error": "Invalid parameters"}), 400
+                )
+            if not (0 <= min_battery_level <= 100):
+                return flask.make_response(
+                    flask.jsonify({"error": "min_battery_level out of range"}),
+                    400,
+                )
+            if minutes_between_cycles not in _valid_intervals:
+                return flask.make_response(
+                    flask.jsonify({"error": "minutes_between_cycles invalid"}),
+                    400,
+                )
+            if not (60 <= total_duration_minutes <= 720):
+                return flask.make_response(
+                    flask.jsonify(
+                        {"error": "total_duration_minutes out of range"}
+                    ),
+                    400,
+                )
+            plugin.scheduler.update_settings(
+                min_battery_level=min_battery_level,
+                minutes_between_cycles=minutes_between_cycles,
+                total_duration_minutes=total_duration_minutes,
+                endless=endless,
+            )
+            plugin.save_settings()
+            return flask.jsonify({"ok": True})
+
         @self.app.route("/settings", methods=["GET", "POST"])
         def settings() -> WerkzeugResponse | str:
             plugin = self._plugin

@@ -26,6 +26,68 @@
     // syncControls skips the update while this is true so polling never
     // clobbers unsaved edits.
     let userEdited = false;
+    let saveTimer = null;
+    let editGeneration = 0;
+
+    function getControlValues() {
+        const batterySlider = document.getElementById("min_battery_level");
+        const endlessCheck = document.getElementById("endless");
+        const durationSlider = document.getElementById("total_duration_minutes");
+        const intervalRadio = document.querySelector(
+            'input[name="minutes_between_cycles"]:checked'
+        );
+        return {
+            min_battery_level: batterySlider ? parseInt(batterySlider.value, 10) : 0,
+            minutes_between_cycles: intervalRadio ? parseInt(intervalRadio.value, 10) : 0,
+            total_duration_minutes: durationSlider ? parseInt(durationSlider.value, 10) : 0,
+            endless: endlessCheck ? endlessCheck.checked : false,
+        };
+    }
+
+    function showSaveIndicator(success) {
+        const el = document.getElementById("save-indicator");
+        if (!el) return;
+        el.textContent = success ? "Settings saved" : "Save failed";
+        el.classList.remove(
+            "text-success",
+            "text-danger",
+            "invisible"
+        );
+        el.classList.add(success ? "text-success" : "text-danger");
+        setTimeout(function () {
+            el.classList.add("invisible");
+        }, 2000);
+    }
+
+    function doSave() {
+        const csrfInput = document.querySelector('input[name="csrf_token"]');
+        const csrfToken = csrfInput ? csrfInput.value : "";
+        const myGeneration = editGeneration;
+        fetch("/api/settings", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken,
+            },
+            body: JSON.stringify(getControlValues()),
+        })
+            .then(function (resp) {
+                if (resp.ok && editGeneration === myGeneration) {
+                    userEdited = false;
+                    showSaveIndicator(true);
+                } else if (!resp.ok) {
+                    showSaveIndicator(false);
+                }
+            })
+            .catch(function () {
+                showSaveIndicator(false);
+            });
+    }
+
+    function scheduleSave() {
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(doSave, 2000);
+    }
 
     function initControls() {
         const batterySlider = document.getElementById("min_battery_level");
@@ -33,7 +95,9 @@
         if (batterySlider && batteryLabel) {
             batterySlider.addEventListener("input", function () {
                 batteryLabel.textContent = this.value;
+                editGeneration++;
                 userEdited = true;
+                scheduleSave();
             });
         }
 
@@ -44,13 +108,17 @@
         if (durationSlider && durationLabel) {
             durationSlider.addEventListener("input", function () {
                 durationLabel.textContent = this.value;
+                editGeneration++;
                 userEdited = true;
+                scheduleSave();
             });
         }
         if (endlessCheck && durationSlider) {
             endlessCheck.addEventListener("change", function () {
                 durationSlider.disabled = this.checked;
+                editGeneration++;
                 userEdited = true;
+                scheduleSave();
             });
         }
 
@@ -59,6 +127,7 @@
             .forEach(function (el) {
                 el.addEventListener("change", function () {
                     userEdited = true;
+                    scheduleSave();
                 });
             });
     }
@@ -197,5 +266,14 @@
         initControls();
         pollStatus();
         setInterval(pollStatus, 5000);
+
+        const startForm = document.querySelector(
+            'form[action*="start"]'
+        );
+        if (startForm) {
+            startForm.addEventListener("submit", function () {
+                clearTimeout(saveTimer);
+            });
+        }
     });
 }());
