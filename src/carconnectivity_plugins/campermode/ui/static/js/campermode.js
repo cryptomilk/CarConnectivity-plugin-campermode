@@ -22,12 +22,18 @@
         return s + "s";
     }
 
+    // Set to true the moment the user interacts with any start-form control.
+    // syncControls skips the update while this is true so polling never
+    // clobbers unsaved edits.
+    let userEdited = false;
+
     function initControls() {
         const batterySlider = document.getElementById("min_battery_level");
         const batteryLabel = document.getElementById("battery-label");
         if (batterySlider && batteryLabel) {
             batterySlider.addEventListener("input", function () {
                 batteryLabel.textContent = this.value;
+                userEdited = true;
             });
         }
 
@@ -38,16 +44,27 @@
         if (durationSlider && durationLabel) {
             durationSlider.addEventListener("input", function () {
                 durationLabel.textContent = this.value;
+                userEdited = true;
             });
         }
         if (endlessCheck && durationSlider) {
             endlessCheck.addEventListener("change", function () {
                 durationSlider.disabled = this.checked;
+                userEdited = true;
             });
         }
+
+        document
+            .querySelectorAll('input[name="minutes_between_cycles"]')
+            .forEach(function (el) {
+                el.addEventListener("change", function () {
+                    userEdited = true;
+                });
+            });
     }
 
     function syncControls(settings) {
+        if (userEdited) return;
         const batterySlider = document.getElementById("min_battery_level");
         const batteryLabel = document.getElementById("battery-label");
         if (batterySlider && batteryLabel) {
