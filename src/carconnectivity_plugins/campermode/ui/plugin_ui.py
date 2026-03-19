@@ -23,7 +23,7 @@ from werkzeug.serving import make_server
 from wtforms import BooleanField, PasswordField, StringField, SubmitField
 from wtforms.validators import Length
 
-from carconnectivity_plugins.campermode.models import CamperTimer
+from carconnectivity_plugins.campermode.models import CamperTimer, PhaseState
 
 if TYPE_CHECKING:
     from werkzeug.serving import BaseWSGIServer, _TSSLContextArg
@@ -199,11 +199,17 @@ class CamperUI:
         def dashboard() -> WerkzeugResponse | str:
             plugin = self._plugin
             s = plugin.settings
+            state = plugin.state
+            show_warning = (
+                state.active
+                and state.current_phase == PhaseState.HEATING
+                and s.has_active_heating
+            )
             return flask.render_template(
                 "campermode/dashboard.html",
                 settings=s,
-                state=plugin.state,
-                show_warning=s.has_active_heating,
+                state=state,
+                show_warning=show_warning,
             )
 
         @self.app.route("/start", methods=["POST"])
@@ -262,11 +268,16 @@ class CamperUI:
         def api_status() -> WerkzeugResponse:
             plugin = self._plugin
             s = plugin.settings
+            state = plugin.state
             return flask.jsonify(
                 {
-                    "state": plugin.state.to_dict(),
+                    "state": state.to_dict(),
                     "settings": s.to_dict(),
-                    "show_warning": s.has_active_heating,
+                    "show_warning": (
+                        state.active
+                        and state.current_phase == PhaseState.HEATING
+                        and s.has_active_heating
+                    ),
                 }
             )
 
