@@ -52,6 +52,24 @@ select = [
 [tool.ruff.lint.isort]
 known-first-party = ["carconnectivity_plugins", "carconnectivity"]
 
-[tool.basedpyright]
-pythonVersion = "3.10"
-typeCheckingMode = "standard"
+[tool.tox]
+requires = ["tox>=4"]
+env_list = ["lint", "format", "typing"]
+
+[tool.tox.env.lint]
+description = "Lint with ruff"
+skip_install = true
+deps = ["ruff"]
+commands = [["ruff", "check", "src/", "test/"]]
+
+[tool.tox.env.format]
+description = "Check formatting with ruff"
+skip_install = true
+deps = ["ruff"]
+commands = [["ruff", "format", "--check", "src/", "test/"]]
+
+[tool.tox.env.typing]
+description = "Type check with ty"
+deps = ["ty"]
+commands = [["ty", "check", "src/"]]
+
