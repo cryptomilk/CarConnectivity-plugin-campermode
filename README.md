@@ -10,7 +10,7 @@ scheduling (camper mode).
 - Battery safety: auto-stop below configurable threshold
 - Timer scheduling for automatic activation
 - Mobile-first web UI at a dedicated port
-- VW climate zone control (seat heating zones)
+- VW heating zone control (seat, steering wheel, mirror, rear window, windscreen)
 
 ## Installation
 
@@ -89,8 +89,8 @@ time through the web UI. They are listed here for reference.
 | `total_duration_minutes` | `60` | ≥ 1 — overall session length (ignored when `endless` is true) |
 | `endless` | `false` | Run indefinitely until manually stopped or battery threshold hit |
 | `target_temperature` | `22.0` | 15.5–30.0 °C (VW system limits) |
-| `window_heating` | `true` | Enable window heating during each cycle |
-| `front_zone_left` | `true` | Front-left seat heating |
-| `front_zone_right` | `true` | Front-right seat heating |
-| `rear_zone_left` | `false` | Rear-left seat heating |
-| `rear_zone_right` | `false` | Rear-right seat heating |
+| `window_heating` | `false` | Enable window heating during each cycle |
+| `front_zone_left` | `false` | Front-left heating zone |
+| `front_zone_right` | `false` | Front-right heating zone |
+| `rear_zone_left` | `false` | Rear-left heating zone |
+| `rear_zone_right` | `false` | Rear-right heating zone |

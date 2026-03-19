@@ -69,9 +69,9 @@ class CamperSettings:
     cycle_duration_minutes: int = 30
     total_duration_minutes: int = 60
     endless: bool = False
-    window_heating: bool = True
-    front_zone_left: bool = True
-    front_zone_right: bool = True
+    window_heating: bool = False
+    front_zone_left: bool = False
+    front_zone_right: bool = False
     rear_zone_left: bool = False
     rear_zone_right: bool = False
     target_temperature: float = 22.0
@@ -132,9 +132,9 @@ class CamperSettings:
                 data.get("total_duration_minutes", 60)  # type: ignore[arg-type]
             ),
             endless=bool(data.get("endless", False)),
-            window_heating=bool(data.get("window_heating", True)),
-            front_zone_left=bool(data.get("front_zone_left", True)),
-            front_zone_right=bool(data.get("front_zone_right", True)),
+            window_heating=bool(data.get("window_heating", False)),
+            front_zone_left=bool(data.get("front_zone_left", False)),
+            front_zone_right=bool(data.get("front_zone_right", False)),
             rear_zone_left=bool(data.get("rear_zone_left", False)),
             rear_zone_right=bool(data.get("rear_zone_right", False)),
             target_temperature=float(
