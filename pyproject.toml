@@ -23,6 +23,13 @@ classifiers = [
     "Topic :: Home Automation",
 ]
 
+[tool.setuptools.package-data]
+"carconnectivity_plugins.campermode" = [
+    "ui/templates/campermode/*.html",
+    "ui/static/css/*.css",
+    "ui/static/js/*.js",
+]
+
 [tool.setuptools_scm]
 write_to = "src/carconnectivity_plugins/campermode/_version.py"
 
