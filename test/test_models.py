@@ -238,6 +238,20 @@ def test_state_to_dict_started_at_none():
     assert d["started_at"] is None
 
 
+def test_state_to_dict_includes_avg_consumption():
+    s = CamperState(avg_battery_consumption=7.5)
+    d = s.to_dict()
+    assert "avg_battery_consumption" in d
+    assert d["avg_battery_consumption"] == pytest.approx(7.5)
+
+
+def test_state_to_dict_includes_half_cycle_active():
+    s = CamperState(half_cycle_active=True)
+    d = s.to_dict()
+    assert "half_cycle_active" in d
+    assert d["half_cycle_active"] is True
+
+
 # ---------------------------------------------------------------------------
 # save_data / load_data
 # ---------------------------------------------------------------------------

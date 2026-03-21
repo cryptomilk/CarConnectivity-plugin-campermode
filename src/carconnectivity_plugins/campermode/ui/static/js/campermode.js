@@ -5,6 +5,7 @@
     var STOP_REASON_LABELS = {
         manual: "Stopped manually",
         battery: "Stopped: battery too low",
+        battery_predicted: "Stopped: battery level predicted too low",
         vehicle_offline: "Stopped: vehicle went offline",
         vehicle_climatization_off: "Stopped: heating reported off by vehicle",
         duration_reached: "Session complete",
@@ -233,6 +234,22 @@
                 state.current_battery_level !== null
                     ? state.current_battery_level + "%"
                     : "\u2014";
+        }
+
+        // Avg battery consumption
+        const avgConsEl = document.getElementById("status-avg-consumption");
+        const avgConsValEl = document.getElementById("status-avg-consumption-value");
+        const halfBadgeEl = document.getElementById("status-half-cycle-badge");
+        if (avgConsEl) {
+            const avg = state.avg_battery_consumption;
+            const hasAvg = avg !== null && avg !== undefined;
+            avgConsEl.classList.toggle("d-none", !hasAvg);
+            if (avgConsValEl && hasAvg) {
+                avgConsValEl.textContent = avg.toFixed(1) + "%";
+            }
+            if (halfBadgeEl) {
+                halfBadgeEl.classList.toggle("d-none", !state.half_cycle_active);
+            }
         }
 
         // Car climatization state

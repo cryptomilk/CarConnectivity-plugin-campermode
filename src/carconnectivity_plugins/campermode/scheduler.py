@@ -66,6 +66,10 @@ class CamperScheduler:
         self._session_start: float | None = None
         self._poll_interval_seconds: float = 300.0
 
+        self._heating_start_battery: int | None = None
+        self._battery_deltas: list[int] = []
+        self._half_cycle: bool = False
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -295,6 +299,8 @@ class CamperScheduler:
         self._phase_start = now
         self._state.active = True
         self._state.current_phase = PhaseState.HEATING
+        self._heating_start_battery = self._battery_level
+        self._half_cycle = False
         self._state.cycle_number = 1
         self._state.started_at = datetime.now(tz=timezone.utc)
         self._state.stopped_reason = None
@@ -323,12 +329,17 @@ class CamperScheduler:
             return
         LOG.info("Stopping camper session: %s", reason)
         if self._state.current_phase == PhaseState.HEATING:
+            self._record_heating_end()
             self._send_command(ClimatizationStartStopCommand.Command.STOP)
         self._state.active = False
         self._state.current_phase = PhaseState.IDLE
         self._state.stopped_reason = reason
         self._session_start = None
         self._phase_start = None
+        self._battery_deltas = []
+        self._half_cycle = False
+        self._state.avg_battery_consumption = None
+        self._state.half_cycle_active = False
 
     def _apply_climate_settings(self) -> None:
         """Push zone/temperature settings to the vehicle (hold lock)."""
@@ -431,6 +442,24 @@ class CamperScheduler:
             LOG.error("Failed to send climate command %s: %s", command, exc)
             return False
 
+    def _avg_consumption(self) -> float | None:
+        """Return mean battery drop per heating cycle, or None if no data."""
+        if not self._battery_deltas:
+            return None
+        return sum(self._battery_deltas) / len(self._battery_deltas)
+
+    def _record_heating_end(self) -> None:
+        """Record battery drop for the just-finished heating phase."""
+        if (
+            self._heating_start_battery is not None
+            and self._battery_level is not None
+        ):
+            delta = self._heating_start_battery - self._battery_level
+            if delta >= 0:
+                self._battery_deltas.append(delta)
+        self._heating_start_battery = None
+        self._state.avg_battery_consumption = self._avg_consumption()
+
     # ------------------------------------------------------------------
     # Background loop
     # ------------------------------------------------------------------
@@ -521,7 +550,10 @@ class CamperScheduler:
 
         # Update remaining counters
         if self._state.current_phase == PhaseState.HEATING:
-            phase_total = self._settings.cycle_duration_minutes * 60
+            if self._half_cycle:
+                phase_total = (self._settings.cycle_duration_minutes * 60) // 2
+            else:
+                phase_total = self._settings.cycle_duration_minutes * 60
         else:
             phase_total = self._settings.minutes_between_cycles * 60
         self._state.phase_remaining_seconds = max(
@@ -560,13 +592,21 @@ class CamperScheduler:
 
         # Phase transitions
         if self._state.current_phase == PhaseState.HEATING:
-            cycle_secs = self._settings.cycle_duration_minutes * 60
+            if self._half_cycle:
+                cycle_secs = (self._settings.cycle_duration_minutes * 60) // 2
+            else:
+                cycle_secs = self._settings.cycle_duration_minutes * 60
             if phase_elapsed >= cycle_secs:
                 if self._settings.minutes_between_cycles == 0:
                     # Continuous — restart cycle immediately
+                    self._record_heating_end()
                     self._state.cycle_number += 1
                     self._phase_start = now
-                    self._state.phase_remaining_seconds = cycle_secs
+                    self._half_cycle = False
+                    self._heating_start_battery = self._battery_level
+                    self._state.phase_remaining_seconds = (
+                        self._settings.cycle_duration_minutes * 60
+                    )
                     LOG.debug(
                         "Continuous mode: starting cycle %d",
                         self._state.cycle_number,
@@ -575,6 +615,7 @@ class CamperScheduler:
                         ClimatizationStartStopCommand.Command.START
                     )
                 else:
+                    self._record_heating_end()
                     LOG.info(
                         "Cycle %d complete — pausing %d min",
                         self._state.cycle_number,
@@ -596,6 +637,27 @@ class CamperScheduler:
                     or self._battery_level >= self._settings.min_battery_level
                 )
                 if bat_ok:
+                    # Predictive battery check
+                    predicted = self._avg_consumption()
+                    use_half_cycle = False
+                    if (
+                        predicted is not None
+                        and self._battery_level is not None
+                        and self._battery_level - predicted
+                        < self._settings.min_battery_level
+                    ):
+                        if (
+                            self._battery_level - predicted / 2
+                            < self._settings.min_battery_level
+                        ):
+                            LOG.warning(
+                                "Predicted battery drop too high,"
+                                " stopping (battery_predicted)"
+                            )
+                            self._do_stop_session("battery_predicted")
+                            return
+                        else:
+                            use_half_cycle = True
                     LOG.info(
                         "Pause done — starting cycle %d",
                         self._state.cycle_number + 1,
@@ -606,8 +668,20 @@ class CamperScheduler:
                         self._state.cycle_number += 1
                         self._state.current_phase = PhaseState.HEATING
                         self._phase_start = now
-                        cycle_secs = self._settings.cycle_duration_minutes * 60
+                        self._half_cycle = use_half_cycle
+                        self._heating_start_battery = self._battery_level
+                        if use_half_cycle:
+                            cycle_secs = (
+                                self._settings.cycle_duration_minutes * 60
+                            ) // 2
+                        else:
+                            cycle_secs = (
+                                self._settings.cycle_duration_minutes * 60
+                            )
                         self._state.phase_remaining_seconds = cycle_secs
                 else:
                     LOG.warning("Battery too low after pause, stopping")
                     self._do_stop_session("battery")
+
+        self._state.avg_battery_consumption = self._avg_consumption()
+        self._state.half_cycle_active = self._half_cycle

@@ -7,6 +7,8 @@ from datetime import datetime
 from datetime import time as dtime
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from carconnectivity.vehicle import GenericVehicle
 from carconnectivity_plugins.campermode.models import (
     CamperSettings,
@@ -765,3 +767,218 @@ def test_climatization_off_when_idle_is_noop():
     # No active session — must not raise or mutate state
     sched.on_climatization_state_changed(Climatization.ClimatizationState.OFF)
     assert sched._state.active is False
+
+
+# ---------------------------------------------------------------------------
+# Battery delta recording
+# ---------------------------------------------------------------------------
+
+
+def test_battery_delta_recorded_after_heating_cycle():
+    """Delta is appended when HEATING→PAUSED transition fires."""
+    vehicle = make_vehicle()
+    settings = make_settings(
+        cycle_duration_minutes=1, minutes_between_cycles=5
+    )
+    sched = make_scheduler(vehicle=vehicle, settings=settings, battery=80)
+    _start_session_at(sched, 0.0)
+    assert sched._heating_start_battery == 80
+    sched._battery_level = 75
+    _tick_at(sched, 61.0)  # past 1-min cycle → PAUSED
+    assert sched._state.current_phase == "paused"
+    assert sched._battery_deltas == [5]
+
+
+def test_battery_delta_not_recorded_when_battery_none():
+    """No delta recorded when battery level is None."""
+    sched = make_scheduler()
+    # _battery_level stays None
+    with sched._lock:
+        sched._record_heating_end()
+    assert sched._battery_deltas == []
+
+
+def test_battery_delta_recorded_on_stop():
+    """_record_heating_end captures the delta correctly (partial cycle)."""
+    vehicle = make_vehicle()
+    sched = make_scheduler(vehicle=vehicle, battery=80)
+    with sched._lock:
+        sched._do_start_session("test")
+    sched._battery_level = 75
+    with sched._lock:
+        sched._record_heating_end()
+    assert sched._battery_deltas == [5]
+    assert sched._state.avg_battery_consumption == pytest.approx(5.0)
+
+
+def test_battery_deltas_cleared_on_stop():
+    """_battery_deltas resets to [] when the session ends."""
+    vehicle = make_vehicle()
+    settings = make_settings(
+        cycle_duration_minutes=1, minutes_between_cycles=5
+    )
+    sched = make_scheduler(vehicle=vehicle, settings=settings, battery=80)
+    _start_session_at(sched, 0.0)
+    sched._battery_level = 75
+    _tick_at(sched, 61.0)  # HEATING → PAUSED, delta=5 recorded
+    assert sched._battery_deltas == [5]
+    sched.stop_session()
+    assert sched._battery_deltas == []
+
+
+# ---------------------------------------------------------------------------
+# Average consumption
+# ---------------------------------------------------------------------------
+
+
+def test_avg_consumption_none_with_no_data():
+    sched = make_scheduler()
+    assert sched._avg_consumption() is None
+
+
+def test_avg_consumption_single_cycle():
+    sched = make_scheduler()
+    sched._battery_deltas = [10]
+    assert sched._avg_consumption() == pytest.approx(10.0)
+
+
+def test_avg_consumption_multiple_cycles():
+    sched = make_scheduler()
+    sched._battery_deltas = [10, 8, 12]
+    assert sched._avg_consumption() == pytest.approx(10.0)
+
+
+# ---------------------------------------------------------------------------
+# Predictive checks
+# ---------------------------------------------------------------------------
+
+
+def test_prediction_allows_cycle_when_no_data():
+    """No historical data — proceed normally into HEATING."""
+    vehicle = make_vehicle()
+    settings = make_settings(
+        min_battery_level=20,
+        cycle_duration_minutes=1,
+        minutes_between_cycles=2,
+    )
+    sched = make_scheduler(vehicle=vehicle, settings=settings, battery=50)
+    _start_session_at(sched, 0.0)
+    _tick_at(sched, 61.0)  # → PAUSED
+    assert sched._state.current_phase == "paused"
+    _tick_at(sched, 61.0 + 181.0)  # → HEATING (no prediction data)
+    assert sched._state.current_phase == "heating"
+    assert sched._state.active is True
+
+
+def test_prediction_allows_cycle_when_battery_sufficient():
+    """Predicted floor stays above minimum — full cycle proceeds."""
+    vehicle = make_vehicle()
+    settings = make_settings(
+        min_battery_level=20,
+        cycle_duration_minutes=1,
+        minutes_between_cycles=2,
+    )
+    # delta=5 recorded in cycle 1; battery=75 at pause; 75-5=70 > 20 → OK
+    sched = make_scheduler(vehicle=vehicle, settings=settings, battery=80)
+    _start_session_at(sched, 0.0)
+    sched._battery_level = 75
+    _tick_at(sched, 61.0)  # → PAUSED, _battery_deltas=[5]
+    _tick_at(sched, 61.0 + 181.0)  # → HEATING (75-5=70 > 20 → OK)
+    assert sched._state.current_phase == "heating"
+    assert sched._half_cycle is False
+
+
+def test_prediction_triggers_half_cycle():
+    """Full cycle would breach threshold; half cycle is safe."""
+    vehicle = make_vehicle()
+    settings = make_settings(
+        min_battery_level=20,
+        cycle_duration_minutes=1,
+        minutes_between_cycles=2,
+    )
+    # Cycle 1: battery drops 45 → 30, so delta = 15, avg = 15.
+    # At PAUSED→HEATING: battery=30, predicted=15.
+    #   full check: 30 - 15 = 15 < 20 → full cycle too risky.
+    #   half check: 30 - 7.5 = 22.5 ≥ 20 → half cycle is safe.
+    sched = make_scheduler(vehicle=vehicle, settings=settings, battery=45)
+    _start_session_at(sched, 0.0)
+    sched._battery_level = 30
+    _tick_at(sched, 61.0)  # → PAUSED, _battery_deltas=[15]
+    assert sched._state.current_phase == "paused"
+    _tick_at(sched, 61.0 + 181.0)  # → HEATING with half cycle
+    assert sched._state.current_phase == "heating"
+    assert sched._half_cycle is True
+    assert sched._state.half_cycle_active is True
+
+
+def test_prediction_stops_when_even_half_too_risky():
+    """Both full and half cycle would breach threshold — stop."""
+    vehicle = make_vehicle()
+    settings = make_settings(
+        min_battery_level=20,
+        cycle_duration_minutes=1,
+        minutes_between_cycles=2,
+    )
+    # delta=12 (37→25); 25-12=13 < 20 → risky; 25-6=19 < 20 → stop
+    sched = make_scheduler(vehicle=vehicle, settings=settings, battery=37)
+    _start_session_at(sched, 0.0)
+    sched._battery_level = 25
+    _tick_at(sched, 61.0)  # → PAUSED, _battery_deltas=[12]
+    assert sched._state.current_phase == "paused"
+    _tick_at(sched, 61.0 + 181.0)  # → battery_predicted stop
+    assert sched._state.active is False
+    assert sched._state.stopped_reason == "battery_predicted"
+
+
+def test_prediction_skipped_when_battery_none():
+    """Battery None → conservative: skip predictive check, proceed."""
+    vehicle = make_vehicle()
+    settings = make_settings(
+        min_battery_level=20,
+        cycle_duration_minutes=1,
+        minutes_between_cycles=2,
+    )
+    sched = make_scheduler(vehicle=vehicle, settings=settings)
+    # battery stays None; pre-load deltas to confirm they're ignored
+    sched._battery_deltas = [15]
+    _start_session_at(sched, 0.0)
+    _tick_at(sched, 61.0)  # → PAUSED (no delta recorded, battery None)
+    _tick_at(sched, 61.0 + 181.0)  # → HEATING (predictive check skipped)
+    assert sched._state.current_phase == "heating"
+    assert sched._state.active is True
+
+
+# ---------------------------------------------------------------------------
+# Half-cycle duration
+# ---------------------------------------------------------------------------
+
+
+def test_half_cycle_uses_halved_duration():
+    """When half_cycle is active, HEATING ends at half the full duration."""
+    vehicle = make_vehicle()
+    settings = make_settings(
+        cycle_duration_minutes=2, minutes_between_cycles=5
+    )
+    sched = make_scheduler(vehicle=vehicle, settings=settings)
+    _start_session_at(sched, 0.0)
+    with sched._lock:
+        sched._half_cycle = True
+    # Half of 120 s is 60 s; tick at 61 s → PAUSED
+    _tick_at(sched, 61.0)
+    assert sched._state.current_phase == "paused"
+
+
+def test_half_cycle_records_delta():
+    """Delta is recorded when a half cycle completes."""
+    vehicle = make_vehicle()
+    settings = make_settings(
+        cycle_duration_minutes=2, minutes_between_cycles=5
+    )
+    sched = make_scheduler(vehicle=vehicle, settings=settings, battery=80)
+    _start_session_at(sched, 0.0)
+    with sched._lock:
+        sched._half_cycle = True
+    sched._battery_level = 75
+    _tick_at(sched, 61.0)  # half cycle done → PAUSED
+    assert sched._state.current_phase == "paused"
+    assert sched._battery_deltas == [5]

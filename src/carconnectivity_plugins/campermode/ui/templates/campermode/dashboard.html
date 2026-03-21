@@ -77,6 +77,15 @@
           {% endif %}
         </span>
       </div>
+      <div id="status-avg-consumption"
+           class="mt-1{% if state.avg_battery_consumption is none %} d-none{% endif %}">
+        <strong>Avg. cycle consumption:</strong>
+        <span id="status-avg-consumption-value">
+          {%- if state.avg_battery_consumption is not none %}{{ "%.1f"|format(state.avg_battery_consumption) }}%{%- endif -%}
+        </span>
+        <span id="status-half-cycle-badge"
+              class="badge bg-warning text-dark ms-1{% if not state.half_cycle_active %} d-none{% endif %}">Half cycle</span>
+      </div>
       <div id="status-stopped-reason"
            class="mt-2 small{% if not state.stopped_reason or state.active %} d-none{% endif %}">
         <i class="bi bi-info-circle me-1"></i><span id="status-stopped-text">
@@ -84,6 +93,7 @@
           {% elif state.stopped_reason == "battery" %}Stopped: battery too low
           {% elif state.stopped_reason == "vehicle_offline" %}Stopped: vehicle went offline
           {% elif state.stopped_reason == "vehicle_climatization_off" %}Stopped: heating reported off by vehicle
+          {% elif state.stopped_reason == "battery_predicted" %}Stopped: battery level predicted too low
           {% elif state.stopped_reason == "duration_reached" %}Session complete
           {% elif state.stopped_reason == "shutdown" %}Stopped: plugin shutdown
           {% elif state.stopped_reason %}{{ state.stopped_reason }}
