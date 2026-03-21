@@ -180,6 +180,7 @@ class Plugin(BasePlugin):
     ) -> None:
         del flags
         if isinstance(element, EnumAttribute) and element.value is not None:
+            self._state.climatization_state = element.value.name.lower()
             self._scheduler.on_climatization_state_changed(element.value)
 
     def shutdown(self) -> None:

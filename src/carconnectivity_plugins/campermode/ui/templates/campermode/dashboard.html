@@ -50,6 +50,22 @@
           <strong>Total remaining:</strong>
           <span id="status-total-remaining">—</span>
         </p>
+        <p class="mb-1">
+          <strong>Car climate:</strong>
+          <span id="status-car-clima">
+            {% if state.climatization_state == "off" %}
+              <span class="text-warning">
+                <i class="bi bi-exclamation-triangle me-1"></i>OFF
+              </span>
+            {% elif state.climatization_state %}
+              <span class="text-success">
+                <i class="bi bi-check-circle me-1"></i>{{ state.climatization_state | upper }}
+              </span>
+            {% else %}
+              —
+            {% endif %}
+          </span>
+        </p>
       </div>
       <div class="mt-2">
         <strong>Battery:</strong>
@@ -62,8 +78,17 @@
         </span>
       </div>
       <div id="status-stopped-reason"
-           class="mt-2 text-muted small{% if not state.stopped_reason or state.active %} d-none{% endif %}">
-        Stopped: <span id="status-stopped-text">{{ state.stopped_reason or "" }}</span>
+           class="mt-2 small{% if not state.stopped_reason or state.active %} d-none{% endif %}">
+        <i class="bi bi-info-circle me-1"></i><span id="status-stopped-text">
+          {% if state.stopped_reason == "manual" %}Stopped manually
+          {% elif state.stopped_reason == "battery" %}Stopped: battery too low
+          {% elif state.stopped_reason == "vehicle_offline" %}Stopped: vehicle went offline
+          {% elif state.stopped_reason == "vehicle_climatization_off" %}Stopped: heating reported off by vehicle
+          {% elif state.stopped_reason == "duration_reached" %}Session complete
+          {% elif state.stopped_reason == "shutdown" %}Stopped: plugin shutdown
+          {% elif state.stopped_reason %}{{ state.stopped_reason }}
+          {% endif %}
+        </span>
       </div>
     </div>
   </div>

@@ -155,6 +155,7 @@ class CamperState:
     started_at: datetime | None = None
     stopped_reason: str | None = None
     current_battery_level: int | None = None
+    climatization_state: str | None = None
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -170,6 +171,7 @@ class CamperState:
             ),
             "stopped_reason": self.stopped_reason,
             "current_battery_level": self.current_battery_level,
+            "climatization_state": self.climatization_state,
         }
 
 

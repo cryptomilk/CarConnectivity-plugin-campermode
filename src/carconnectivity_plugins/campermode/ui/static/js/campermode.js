@@ -2,6 +2,15 @@
 (function () {
     "use strict";
 
+    var STOP_REASON_LABELS = {
+        manual: "Stopped manually",
+        battery: "Stopped: battery too low",
+        vehicle_offline: "Stopped: vehicle went offline",
+        vehicle_climatization_off: "Stopped: heating reported off by vehicle",
+        duration_reached: "Session complete",
+        shutdown: "Stopped: plugin shutdown",
+    };
+
     function formatDuration(minutes) {
         const h = Math.floor(minutes / 60);
         const m = minutes % 60;
@@ -226,6 +235,24 @@
                     : "\u2014";
         }
 
+        // Car climatization state
+        const climaEl = document.getElementById("status-car-clima");
+        if (climaEl) {
+            const cs = state.climatization_state;
+            if (!cs) {
+                climaEl.innerHTML = "\u2014";
+            } else if (cs === "off") {
+                climaEl.innerHTML =
+                    '<span class="text-warning">' +
+                    '<i class="bi bi-exclamation-triangle me-1"></i>OFF</span>';
+            } else {
+                climaEl.innerHTML =
+                    '<span class="text-success">' +
+                    '<i class="bi bi-check-circle me-1"></i>' +
+                    cs.toUpperCase() + "</span>";
+            }
+        }
+
         // Stopped reason
         const stoppedDiv = document.getElementById("status-stopped-reason");
         const stoppedText = document.getElementById("status-stopped-text");
@@ -236,7 +263,10 @@
                 "d-none",
                 !hasReason || state.active
             );
-            stoppedText.textContent = state.stopped_reason || "";
+            stoppedText.textContent =
+                STOP_REASON_LABELS[state.stopped_reason] ||
+                state.stopped_reason ||
+                "";
         }
 
         // Warning banner
