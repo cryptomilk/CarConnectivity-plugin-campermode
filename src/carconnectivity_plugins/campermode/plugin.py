@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from carconnectivity.attributes import LevelAttribute
+from carconnectivity.attributes import EnumAttribute, LevelAttribute
 from carconnectivity.drive import ElectricDrive
 from carconnectivity.errors import ConfigurationError
 from carconnectivity.observable import Observable
@@ -65,6 +65,7 @@ class Plugin(BasePlugin):
             save_callback=self.save_settings,
         )
         self._observed_drives: list[ElectricDrive] = []
+        self._observed_climatization: list = []
 
         # ── Web server config ─────────────────────────────────────────
         host: str = str(config.get("host", "0.0.0.0"))  # nosec
@@ -148,6 +149,17 @@ class Plugin(BasePlugin):
                     self._scheduler.update_battery_level(
                         int(drive.level.value)
                     )
+        vehicle.climatization.state.add_observer(
+            self._on_climatization_changed,
+            flag=Observable.ObserverEvent.VALUE_CHANGED,
+        )
+        self._observed_climatization.append(vehicle.climatization.state)
+        for conn in self.car_connectivity.connectors.connectors.values():
+            if hasattr(conn, "interval") and conn.interval.value is not None:
+                self._scheduler.set_poll_interval(
+                    conn.interval.value.total_seconds()
+                )
+                break
 
     def _on_vehicle_added(
         self, element: object, flags: Observable.ObserverEvent
@@ -163,6 +175,13 @@ class Plugin(BasePlugin):
         if isinstance(element, LevelAttribute) and element.value is not None:
             self._scheduler.update_battery_level(int(element.value))
 
+    def _on_climatization_changed(
+        self, element: object, flags: Observable.ObserverEvent
+    ) -> None:
+        del flags
+        if isinstance(element, EnumAttribute) and element.value is not None:
+            self._scheduler.on_climatization_state_changed(element.value)
+
     def shutdown(self) -> None:
         LOG.info("Shutting down CamperMode plugin")
         self._ui.stop()
@@ -170,6 +189,8 @@ class Plugin(BasePlugin):
         self.car_connectivity.garage.remove_observer(self._on_vehicle_added)
         for drive in self._observed_drives:
             drive.level.remove_observer(self._on_battery_changed)
+        for clima_state in self._observed_climatization:
+            clima_state.remove_observer(self._on_climatization_changed)
         self._scheduler.stop()
         save_data(self._data_file, self._settings, self._timers)
         return super().shutdown()

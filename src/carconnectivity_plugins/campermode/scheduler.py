@@ -64,6 +64,7 @@ class CamperScheduler:
         self._last_command_time: float | None = None
         self._phase_start: float | None = None
         self._session_start: float | None = None
+        self._poll_interval_seconds: float = 300.0
 
     # ------------------------------------------------------------------
     # Public API
@@ -72,6 +73,10 @@ class CamperScheduler:
     def set_vehicle(self, vehicle: GenericVehicle) -> None:
         with self._lock:
             self._vehicle = vehicle
+
+    def set_poll_interval(self, seconds: float) -> None:
+        with self._lock:
+            self._poll_interval_seconds = seconds
 
     def update_battery_level(self, level: int) -> None:
         with self._lock:
@@ -84,6 +89,36 @@ class CamperScheduler:
                     self._settings.min_battery_level,
                 )
                 self._do_stop_session("battery")
+
+    def on_climatization_state_changed(self, state: object) -> None:
+        from carconnectivity.climatization import Climatization
+
+        if not isinstance(state, Climatization.ClimatizationState):
+            return
+        with self._lock:
+            if (
+                not self._state.active
+                or self._state.current_phase != PhaseState.HEATING
+                or state != Climatization.ClimatizationState.OFF
+            ):
+                return
+            if self._phase_start is None:
+                return
+            elapsed = time_module.monotonic() - self._phase_start
+            grace = 2 * self._poll_interval_seconds + 10
+            if elapsed < grace:
+                LOG.debug(
+                    "Climatization OFF within grace period (%.0f/%.0f s)",
+                    elapsed,
+                    grace,
+                )
+                return
+            LOG.warning(
+                "Vehicle reports climatization OFF after %.0f s"
+                " — stopping session",
+                elapsed,
+            )
+            self._do_stop_session("vehicle_climatization_off")
 
     def start(self) -> None:
         """Start the scheduler background thread."""

@@ -258,3 +258,28 @@ def test_start_session_post_redirects(flask_client):
 def test_stop_session_post_redirects(flask_client):
     resp = flask_client.post("/stop")
     assert resp.status_code in (302, 303)
+
+
+def test_climatization_observer_forwards_to_scheduler(tmp_path):
+    from carconnectivity.attributes import EnumAttribute
+    from carconnectivity.climatization import Climatization
+    from carconnectivity.observable import Observable
+    from carconnectivity_plugins.base.plugin import BasePlugin
+    from carconnectivity_plugins.campermode.plugin import Plugin
+
+    config = {"port": 4001, "data_file": str(tmp_path / "cm.json")}
+    cc = make_car_connectivity()
+    with patch.object(BasePlugin, "__init__", new=_stub_base_init):
+        plugin = Plugin("test_id", cc, config)
+
+    mock_element = MagicMock(spec=EnumAttribute)
+    mock_element.value = Climatization.ClimatizationState.OFF
+
+    with patch.object(
+        plugin._scheduler, "on_climatization_state_changed"
+    ) as mock_handler:
+        plugin._on_climatization_changed(
+            mock_element, Observable.ObserverEvent.VALUE_CHANGED
+        )
+
+    mock_handler.assert_called_once_with(Climatization.ClimatizationState.OFF)

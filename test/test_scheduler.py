@@ -692,3 +692,76 @@ def test_start_with_offline_value_but_state_disabled_succeeds():
     vehicle.state.value = GenericVehicle.State.OFFLINE
     sched = make_scheduler(vehicle=vehicle)
     assert sched.start_session() is True
+
+
+# ---------------------------------------------------------------------------
+# Climatization state observer
+# ---------------------------------------------------------------------------
+
+
+def test_climatization_off_after_grace_period_stops_session():
+    from carconnectivity.climatization import Climatization
+
+    vehicle = make_vehicle()
+    sched = make_scheduler(vehicle=vehicle)
+    sched.set_poll_interval(10.0)  # grace = 2*10+10 = 30 s
+    _start_session_at(sched, 0.0)
+    assert sched._state.active is True
+    with patch(
+        "carconnectivity_plugins.campermode.scheduler.time_module.monotonic",
+        return_value=31.0,
+    ):
+        sched.on_climatization_state_changed(
+            Climatization.ClimatizationState.OFF
+        )
+    assert sched._state.active is False
+    assert sched._state.stopped_reason == "vehicle_climatization_off"
+
+
+def test_climatization_off_within_grace_period_ignored():
+    from carconnectivity.climatization import Climatization
+
+    vehicle = make_vehicle()
+    sched = make_scheduler(vehicle=vehicle)
+    sched.set_poll_interval(10.0)  # grace = 30 s
+    _start_session_at(sched, 0.0)
+    assert sched._state.active is True
+    with patch(
+        "carconnectivity_plugins.campermode.scheduler.time_module.monotonic",
+        return_value=15.0,
+    ):
+        sched.on_climatization_state_changed(
+            Climatization.ClimatizationState.OFF
+        )
+    assert sched._state.active is True
+
+
+def test_climatization_off_when_paused_is_noop():
+    from carconnectivity.climatization import Climatization
+
+    vehicle = make_vehicle()
+    settings = make_settings(
+        cycle_duration_minutes=1, minutes_between_cycles=5
+    )
+    sched = make_scheduler(vehicle=vehicle, settings=settings)
+    sched.set_poll_interval(10.0)  # grace = 30 s
+    _start_session_at(sched, 0.0)
+    _tick_at(sched, 181.0)  # heating → paused (past cycle + rate limit)
+    assert sched._state.current_phase == "paused"
+    with patch(
+        "carconnectivity_plugins.campermode.scheduler.time_module.monotonic",
+        return_value=200.0,
+    ):
+        sched.on_climatization_state_changed(
+            Climatization.ClimatizationState.OFF
+        )
+    assert sched._state.active is True
+
+
+def test_climatization_off_when_idle_is_noop():
+    from carconnectivity.climatization import Climatization
+
+    sched = make_scheduler()
+    # No active session — must not raise or mutate state
+    sched.on_climatization_state_changed(Climatization.ClimatizationState.OFF)
+    assert sched._state.active is False
