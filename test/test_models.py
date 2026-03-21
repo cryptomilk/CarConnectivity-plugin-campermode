@@ -110,9 +110,9 @@ def test_settings_defaults():
     assert s.cycle_duration_minutes == 30
     assert s.total_duration_minutes == 60
     assert s.endless is False
-    assert s.window_heating is True
-    assert s.front_zone_left is True
-    assert s.front_zone_right is True
+    assert s.window_heating is False
+    assert s.front_zone_left is False
+    assert s.front_zone_right is False
     assert s.rear_zone_left is False
     assert s.rear_zone_right is False
     assert s.target_temperature == pytest.approx(22.0)
