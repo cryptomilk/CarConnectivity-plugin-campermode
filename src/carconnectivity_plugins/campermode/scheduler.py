@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 LOG: logging.Logger = logging.getLogger("carconnectivity.plugins.campermode")
 
 # Minimum seconds between any two climatisation commands (rate-limit guard)
-_MIN_CMD_INTERVAL: int = 180
+_MIN_CMD_INTERVAL: float = 180
 # Hard cap on stored timers to prevent resource exhaustion
 _MAX_TIMERS: int = 50
 
