@@ -215,7 +215,7 @@ def test_state_to_dict():
     now = datetime(2026, 3, 18, 1, 0, tzinfo=timezone.utc)
     s = CamperState(
         active=True,
-        current_phase="heating",
+        current_phase=PhaseState.HEATING,
         cycle_number=2,
         phase_remaining_seconds=1200,
         total_remaining_seconds=3600,

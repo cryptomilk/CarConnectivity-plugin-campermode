@@ -162,7 +162,7 @@ class CamperState:
     def to_dict(self) -> dict[str, object]:
         return {
             "active": self.active,
-            "current_phase": self.current_phase,
+            "current_phase": self.current_phase.value,
             "cycle_number": self.cycle_number,
             "phase_remaining_seconds": self.phase_remaining_seconds,
             "total_remaining_seconds": self.total_remaining_seconds,
