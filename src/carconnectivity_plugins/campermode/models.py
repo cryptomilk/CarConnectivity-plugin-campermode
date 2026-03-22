@@ -73,7 +73,13 @@ class CamperSettings:
     cycle_duration_minutes: int = 30
     total_duration_minutes: int = 60
     endless: bool = False
+    # Extra heating is disabled by default — camper mode only needs cabin
+    # air heating.  Seat, window, and zone heating waste battery while
+    # sleeping.  The toggle must be enabled before individual controls
+    # take effect.
+    extra_heating_enabled: bool = False
     window_heating: bool = False
+    seat_heating: bool = False
     front_zone_left: bool = False
     front_zone_right: bool = False
     rear_zone_left: bool = False
@@ -98,9 +104,10 @@ class CamperSettings:
 
     @property
     def has_active_heating(self) -> bool:
-        """True if any window or seat heating zone is enabled."""
-        return (
+        """True if any extra heating consumer is enabled."""
+        return self.extra_heating_enabled and (
             self.window_heating
+            or self.seat_heating
             or self.front_zone_left
             or self.front_zone_right
             or self.rear_zone_left
@@ -114,7 +121,9 @@ class CamperSettings:
             "cycle_duration_minutes": self.cycle_duration_minutes,
             "total_duration_minutes": self.total_duration_minutes,
             "endless": self.endless,
+            "extra_heating_enabled": self.extra_heating_enabled,
             "window_heating": self.window_heating,
+            "seat_heating": self.seat_heating,
             "front_zone_left": self.front_zone_left,
             "front_zone_right": self.front_zone_right,
             "rear_zone_left": self.rear_zone_left,
@@ -136,7 +145,11 @@ class CamperSettings:
                 data.get("total_duration_minutes", 60)  # type: ignore[arg-type]
             ),
             endless=bool(data.get("endless", False)),
+            extra_heating_enabled=bool(
+                data.get("extra_heating_enabled", False)
+            ),
             window_heating=bool(data.get("window_heating", False)),
+            seat_heating=bool(data.get("seat_heating", False)),
             front_zone_left=bool(data.get("front_zone_left", False)),
             front_zone_right=bool(data.get("front_zone_right", False)),
             rear_zone_left=bool(data.get("rear_zone_left", False)),

@@ -29,9 +29,11 @@ def make_settings(**overrides) -> CamperSettings:
         cycle_duration_minutes=1,
         total_duration_minutes=5,
         endless=False,
-        window_heating=True,
-        front_zone_left=True,
-        front_zone_right=True,
+        extra_heating_enabled=False,
+        window_heating=False,
+        seat_heating=False,
+        front_zone_left=False,
+        front_zone_right=False,
         rear_zone_left=False,
         rear_zone_right=False,
         target_temperature=22.0,
@@ -648,24 +650,55 @@ def test_loop_exception_does_not_crash():
 # ---------------------------------------------------------------------------
 
 
-def test_window_heating_applied_when_changeable():
+def test_window_heating_applied_when_extra_heating_enabled():
     vehicle = make_vehicle()
     vehicle.climatization.settings.window_heating.is_changeable = True
-    settings = make_settings(window_heating=True)
+    settings = make_settings(window_heating=True, extra_heating_enabled=True)
     sched = make_scheduler(vehicle=vehicle, settings=settings)
     sched._vehicle = vehicle
     sched._apply_climate_settings()
     assert vehicle.climatization.settings.window_heating.value is True
 
 
+def test_window_heating_forced_off_when_extra_heating_disabled():
+    vehicle = make_vehicle()
+    vehicle.climatization.settings.window_heating.is_changeable = True
+    # extra_heating_enabled=False (default) → window heating must be False
+    settings = make_settings(window_heating=True, extra_heating_enabled=False)
+    sched = make_scheduler(vehicle=vehicle, settings=settings)
+    sched._vehicle = vehicle
+    sched._apply_climate_settings()
+    assert vehicle.climatization.settings.window_heating.value is False
+
+
 def test_window_heating_not_changeable_skipped():
     vehicle = make_vehicle()
     vehicle.climatization.settings.window_heating.is_changeable = False
-    settings = make_settings(window_heating=True)
+    settings = make_settings(window_heating=True, extra_heating_enabled=True)
     sched = make_scheduler(vehicle=vehicle, settings=settings)
     sched._vehicle = vehicle
     sched._apply_climate_settings()  # must not raise
-    # value should not have been set — assert no AttributeError was raised
+
+
+def test_seat_heating_disabled_by_default():
+    vehicle = make_vehicle()
+    vehicle.climatization.settings.seat_heating.is_changeable = True
+    # extra_heating_enabled defaults to False
+    settings = make_settings(seat_heating=True, extra_heating_enabled=False)
+    sched = make_scheduler(vehicle=vehicle, settings=settings)
+    sched._vehicle = vehicle
+    sched._apply_climate_settings()
+    assert vehicle.climatization.settings.seat_heating.value is False
+
+
+def test_seat_heating_applied_when_extra_heating_enabled():
+    vehicle = make_vehicle()
+    vehicle.climatization.settings.seat_heating.is_changeable = True
+    settings = make_settings(seat_heating=True, extra_heating_enabled=True)
+    sched = make_scheduler(vehicle=vehicle, settings=settings)
+    sched._vehicle = vehicle
+    sched._apply_climate_settings()
+    assert vehicle.climatization.settings.seat_heating.value is True
 
 
 # ---------------------------------------------------------------------------

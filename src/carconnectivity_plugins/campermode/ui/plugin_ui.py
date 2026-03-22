@@ -346,7 +346,11 @@ class CamperUI:
             s = plugin.settings
             if flask.request.method == "POST":
                 try:
+                    extra_heating_enabled = (
+                        "extra_heating_enabled" in flask.request.form
+                    )
                     window_heating = "window_heating" in flask.request.form
+                    seat_heating = "seat_heating" in flask.request.form
                     front_zone_left = "front_zone_left" in flask.request.form
                     front_zone_right = "front_zone_right" in flask.request.form
                     rear_zone_left = "rear_zone_left" in flask.request.form
@@ -369,7 +373,9 @@ class CamperUI:
                     )
                     return flask.redirect(flask.url_for("settings"))
                 plugin.scheduler.update_climate_settings(
+                    extra_heating_enabled=extra_heating_enabled,
                     window_heating=window_heating,
+                    seat_heating=seat_heating,
                     front_zone_left=front_zone_left,
                     front_zone_right=front_zone_right,
                     rear_zone_left=rear_zone_left,

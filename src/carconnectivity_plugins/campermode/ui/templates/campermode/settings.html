@@ -8,70 +8,111 @@
   <form method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-    {# General climate settings #}
+    {# Extra heating toggle #}
     <div class="card mb-3">
-      <div class="card-header fw-semibold">General Climate Settings</div>
+      <div class="card-header fw-semibold">Additional Heating Consumers</div>
       <div class="card-body">
-        <div class="form-check">
-          <input class="form-check-input" type="checkbox" id="window_heating"
-                 name="window_heating" value="1"
-                 {% if current_settings.window_heating %}checked{% endif %}>
-          <label class="form-check-label" for="window_heating">
-            Automatic Window Heating
+        <div class="alert alert-info mb-3" role="alert">
+          <i class="bi bi-info-circle-fill me-1"></i>
+          <strong>Camper mode uses cabin air heating only.</strong>
+          Seat heating, window heating, and zone heating are disabled by
+          default — nobody sits in the seats while sleeping, so running them
+          just wastes battery. Enable the toggle below only if you have a
+          specific reason to use them.
+        </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" role="switch"
+                 id="extra_heating_enabled" name="extra_heating_enabled"
+                 value="1"
+                 {% if current_settings.extra_heating_enabled %}checked{% endif %}
+                 onchange="toggleExtraHeating(this.checked)">
+          <label class="form-check-label fw-medium" for="extra_heating_enabled">
+            Enable additional heating consumers
           </label>
         </div>
       </div>
     </div>
 
-    {# Climate zones #}
-    <div class="card mb-3">
-      <div class="card-header fw-semibold">Heating Zones</div>
-      <div class="card-body">
-        <p class="text-muted small mb-3">
-          Each zone activates seat heating, steering wheel heating, exterior mirror
-          heating, rear window heating, and windscreen heating. Requires the
-          Volkswagen connector. Changes take effect at the next session start.
-        </p>
-        <div class="row mb-2">
-          <div class="col-3 d-flex align-items-center fw-medium">Front</div>
-          <div class="col-4">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="front_zone_left"
-                     name="front_zone_left" value="1"
-                     {% if current_settings.front_zone_left %}checked{% endif %}>
-              <label class="form-check-label" for="front_zone_left">Left</label>
-            </div>
+    {# Individual heating controls (gated behind extra_heating_enabled) #}
+    <div id="extra-heating-controls"
+         {% if not current_settings.extra_heating_enabled %}
+         style="opacity:0.4; pointer-events:none;"
+         {% endif %}>
+
+      {# Window / seat heating #}
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">Window &amp; Seat Heating</div>
+        <div class="card-body">
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="window_heating"
+                   name="window_heating" value="1"
+                   {% if current_settings.window_heating %}checked{% endif %}>
+            <label class="form-check-label" for="window_heating">
+              Window Heating
+            </label>
           </div>
-          <div class="col-4">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="front_zone_right"
-                     name="front_zone_right" value="1"
-                     {% if current_settings.front_zone_right %}checked{% endif %}>
-              <label class="form-check-label" for="front_zone_right">Right</label>
-            </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="seat_heating"
+                   name="seat_heating" value="1"
+                   {% if current_settings.seat_heating %}checked{% endif %}>
+            <label class="form-check-label" for="seat_heating">
+              Seat Heating
+            </label>
           </div>
         </div>
-        <div class="row">
-          <div class="col-3 d-flex align-items-center fw-medium">Rear</div>
-          <div class="col-4">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="rear_zone_left"
-                     name="rear_zone_left" value="1"
-                     {% if current_settings.rear_zone_left %}checked{% endif %}>
-              <label class="form-check-label" for="rear_zone_left">Left</label>
+      </div>
+
+      {# VW heating zones #}
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">Heating Zones</div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">
+            Each zone activates seat heating, steering wheel heating, exterior
+            mirror heating, rear window heating, and windscreen heating.
+            Requires the Volkswagen connector. Changes take effect at the next
+            session start.
+          </p>
+          <div class="row mb-2">
+            <div class="col-3 d-flex align-items-center fw-medium">Front</div>
+            <div class="col-4">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox"
+                       id="front_zone_left" name="front_zone_left" value="1"
+                       {% if current_settings.front_zone_left %}checked{% endif %}>
+                <label class="form-check-label" for="front_zone_left">Left</label>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox"
+                       id="front_zone_right" name="front_zone_right" value="1"
+                       {% if current_settings.front_zone_right %}checked{% endif %}>
+                <label class="form-check-label" for="front_zone_right">Right</label>
+              </div>
             </div>
           </div>
-          <div class="col-4">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="rear_zone_right"
-                     name="rear_zone_right" value="1"
-                     {% if current_settings.rear_zone_right %}checked{% endif %}>
-              <label class="form-check-label" for="rear_zone_right">Right</label>
+          <div class="row">
+            <div class="col-3 d-flex align-items-center fw-medium">Rear</div>
+            <div class="col-4">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox"
+                       id="rear_zone_left" name="rear_zone_left" value="1"
+                       {% if current_settings.rear_zone_left %}checked{% endif %}>
+                <label class="form-check-label" for="rear_zone_left">Left</label>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox"
+                       id="rear_zone_right" name="rear_zone_right" value="1"
+                       {% if current_settings.rear_zone_right %}checked{% endif %}>
+                <label class="form-check-label" for="rear_zone_right">Right</label>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </div>{# end #extra-heating-controls #}
 
     {# Target temperature #}
     <div class="card mb-3">
@@ -95,4 +136,17 @@
   </form>
 
 </div>
+
+{% block head %}
+<script>
+function toggleExtraHeating(enabled) {
+  var panel = document.getElementById("extra-heating-controls");
+  if (panel) {
+    panel.style.opacity = enabled ? "1" : "0.4";
+    panel.style.pointerEvents = enabled ? "" : "none";
+  }
+}
+</script>
+{% endblock %}
+
 {% endblock %}

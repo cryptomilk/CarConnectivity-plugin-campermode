@@ -163,7 +163,9 @@ class CamperScheduler:
     def update_climate_settings(
         self,
         *,
+        extra_heating_enabled: bool,
         window_heating: bool,
+        seat_heating: bool,
         front_zone_left: bool,
         front_zone_right: bool,
         rear_zone_left: bool,
@@ -172,7 +174,9 @@ class CamperScheduler:
     ) -> None:
         """Apply climate settings atomically under the scheduler lock."""
         with self._lock:
+            self._settings.extra_heating_enabled = extra_heating_enabled
             self._settings.window_heating = window_heating
+            self._settings.seat_heating = seat_heating
             self._settings.front_zone_left = front_zone_left
             self._settings.front_zone_right = front_zone_right
             self._settings.rear_zone_left = rear_zone_left
@@ -346,18 +350,39 @@ class CamperScheduler:
         self._state.half_cycle_active = False
 
     def _apply_climate_settings(self) -> None:
-        """Push zone/temperature settings to the vehicle (hold lock)."""
+        """Push climate settings to the vehicle (hold lock).
+
+        Camper mode only needs cabin air heating.  Seat heating, window
+        heating, and zone heating are disabled by default — nobody is
+        sitting in the seats while sleeping, so running them wastes
+        battery.  They can only be activated when the user has explicitly
+        enabled extra heating in settings.
+        """
         if self._vehicle is None:
             return
         clima_settings = self._vehicle.climatization.settings
+
+        extra = self._settings.extra_heating_enabled
+
+        # Window heating
         try:
             if clima_settings.window_heating.is_changeable:
                 clima_settings.window_heating.value = (
-                    self._settings.window_heating
+                    extra and self._settings.window_heating
                 )
         except Exception as exc:
             LOG.warning("Failed to set window_heating: %s", exc)
 
+        # Seat heating (standard upstream API attribute)
+        try:
+            if clima_settings.seat_heating.is_changeable:
+                clima_settings.seat_heating.value = (
+                    extra and self._settings.seat_heating
+                )
+        except Exception as exc:
+            LOG.warning("Failed to set seat_heating: %s", exc)
+
+        # VW-specific per-zone seat/window heating
         try:
             from carconnectivity_connectors.volkswagen.climatization import (  # type: ignore[import-not-found]
                 VolkswagenClimatization,
@@ -366,22 +391,22 @@ class CamperScheduler:
             if isinstance(
                 self._vehicle.climatization, VolkswagenClimatization
             ) and hasattr(clima_settings, "front_zone_left_enabled"):
-                if clima_settings.front_zone_left_enabled.is_changeable:  # type: ignore[attr-defined]
-                    clima_settings.front_zone_left_enabled.value = (  # type: ignore[attr-defined]
+                zone_map = {
+                    "front_zone_left_enabled": (
                         self._settings.front_zone_left
-                    )
-                if clima_settings.front_zone_right_enabled.is_changeable:  # type: ignore[attr-defined]
-                    clima_settings.front_zone_right_enabled.value = (  # type: ignore[attr-defined]
+                    ),
+                    "front_zone_right_enabled": (
                         self._settings.front_zone_right
-                    )
-                if clima_settings.rear_zone_left_enabled.is_changeable:  # type: ignore[attr-defined]
-                    clima_settings.rear_zone_left_enabled.value = (  # type: ignore[attr-defined]
-                        self._settings.rear_zone_left
-                    )
-                if clima_settings.rear_zone_right_enabled.is_changeable:  # type: ignore[attr-defined]
-                    clima_settings.rear_zone_right_enabled.value = (  # type: ignore[attr-defined]
+                    ),
+                    "rear_zone_left_enabled": (self._settings.rear_zone_left),
+                    "rear_zone_right_enabled": (
                         self._settings.rear_zone_right
-                    )
+                    ),
+                }
+                for zone, setting in zone_map.items():
+                    attr = getattr(clima_settings, zone, None)
+                    if attr is not None and attr.is_changeable:  # type: ignore[union-attr]
+                        attr.value = extra and setting  # type: ignore[union-attr]
         except ImportError:
             pass
         except Exception as exc:

@@ -38,10 +38,13 @@
         indefinitely until stopped manually.</dd>
         <dt>Target temperature</dt>
         <dd>Desired cabin temperature (15.5–30.0&nbsp;°C).</dd>
-        <dt>Heating zones</dt>
-        <dd>Each zone activates seat heating, steering wheel heating, exterior
-        mirror heating, rear window heating, and windscreen heating
-        (requires the Volkswagen connector).</dd>
+        <dt>Additional heating consumers</dt>
+        <dd>Seat heating, window heating, and heating zones are disabled by
+        default because camper mode only needs cabin air heating — nobody
+        sits in the seats while sleeping. Enable the toggle in Settings only
+        if you have a specific reason. Each zone activates seat heating,
+        steering wheel heating, exterior mirror heating, rear window heating,
+        and windscreen heating (requires the Volkswagen connector).</dd>
         <dt>Timers</dt>
         <dd>Schedule automatic session starts by time and day of week.
         One-time timers disable themselves after firing.</dd>
@@ -60,8 +63,9 @@
       <ul class="mb-0">
         <li>Set the battery threshold to at least 20&nbsp;% to preserve enough
         charge to start the engine.</li>
-        <li>Window heating and heating zones increase power consumption
-        beyond base climatisation.</li>
+        <li>Seat heating, window heating, and heating zones increase power
+        consumption significantly beyond base climatisation. Leave them
+        disabled unless you have a specific need.</li>
         <li>The scheduler rate-limits START commands to one every
         3&nbsp;minutes to protect the vehicle's telematics hardware.</li>
         <li>If the vehicle goes offline or starts driving, the active session
