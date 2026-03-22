@@ -78,7 +78,7 @@ class CamperUI:
         Bootstrap5(self.app)
 
         login_manager = flask_login.LoginManager()
-        login_manager.login_view = "login"  # type: ignore[assignment]
+        login_manager.login_view = "login"
         login_manager.login_message = "Please log in to access this page."
         login_manager.login_message_category = "info"
         login_manager.init_app(self.app)
