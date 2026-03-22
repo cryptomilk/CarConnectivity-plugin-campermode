@@ -1,16 +1,22 @@
 # carconnectivity-plugin-campermode
 
-A CarConnectivity plugin providing a mobile-friendly web UI for overnight car
+A [CarConnectivity](https://github.com/tillsteinbach/CarConnectivity) plugin providing a mobile-friendly web UI for overnight car
 climatisation cycling - periodic heating/cooling with battery safety and timer
 scheduling (camper mode).
 
 ## Features
 
-- Periodic climatisation cycles (30 min on, configurable pause between cycles)
+- Periodic climatisation cycles (configurable duration and pause between cycles)
 - Battery safety: auto-stop below configurable threshold
 - Timer scheduling for automatic activation
 - Mobile-first web UI at a dedicated port
-- VW heating zone control (seat, steering wheel, mirror, rear window, windscreen)
+- VW seat/zone heating disabled during cycles to minimise battery consumption
+  (window heating, front/rear seat zones, steering wheel, mirror, rear window, windscreen)
+
+## Prerequisites
+
+- [CarConnectivity](https://github.com/tillsteinbach/CarConnectivity) installed and configured with a connector (only tested with VW so far)
+- Python 3.10 or later
 
 ## Installation
 
@@ -18,10 +24,30 @@ scheduling (camper mode).
 pip install carconnectivity-plugin-campermode
 ```
 
+![CamperMode web UI](data/screenshots/campermode.png)
+
+## Accessing the web UI
+
+Once CarConnectivity is running, open your browser at:
+
+```
+http://<host>:<port>
+```
+
+where `host` and `port` match the values in your configuration (default:
+`http://localhost:4001`). If authentication is configured, you will be prompted
+to log in.
+
 ## Configuration
 
 Add to your `carconnectivity.json` (comments shown for documentation — remove
-them from the actual file as JSON does not support comments):
+them from the actual file as JSON does not support comments).
+
+> **Note:** `carconnectivity.json` contains credentials and should be readable
+> only by the user running the service:
+> ```bash
+> chmod 600 carconnectivity.json
+> ```
 
 ```jsonc
 {
@@ -76,21 +102,3 @@ them from the actual file as JSON does not support comments):
 }
 ```
 
-### Climatisation settings
-
-The values below are stored in `campermode.json` and can be adjusted at any
-time through the web UI. They are listed here for reference.
-
-| Setting | Default | Range / notes |
-|---|---|---|
-| `min_battery_level` | `20` | 10–90 % — session stops when battery drops to this level |
-| `cycle_duration_minutes` | `30` | ≥ 1 — how long each climatisation cycle runs |
-| `minutes_between_cycles` | `0` | ≥ 0 — pause between consecutive cycles (0 = back-to-back) |
-| `total_duration_minutes` | `60` | ≥ 1 — overall session length (ignored when `endless` is true) |
-| `endless` | `false` | Run indefinitely until manually stopped or battery threshold hit |
-| `target_temperature` | `22.0` | 15.5–30.0 °C (VW system limits) |
-| `window_heating` | `false` | Enable window heating during each cycle |
-| `front_zone_left` | `false` | Front-left heating zone |
-| `front_zone_right` | `false` | Front-right heating zone |
-| `rear_zone_left` | `false` | Rear-left heating zone |
-| `rear_zone_right` | `false` | Rear-right heating zone |
