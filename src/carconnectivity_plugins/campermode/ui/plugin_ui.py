@@ -204,8 +204,8 @@ class CamperUI:
             )
 
         @self.app.route("/healthcheck")
-        def healthcheck() -> str:
-            return "ok"
+        def healthcheck() -> flask.Response:
+            return flask.Response("ok", mimetype="text/plain")
 
         # ── Dashboard ─────────────────────────────────────────────────
 
