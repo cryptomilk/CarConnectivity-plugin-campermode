@@ -290,11 +290,13 @@ def test_battery_drop_when_inactive_no_crash():
 
 
 def _make_datetime(weekday: int, hour: int, minute: int) -> datetime:
-    """Return a datetime for the given weekday/time (2026-03-16 = Monday)."""
-    # 2026-03-16 is a Monday (weekday=0), so offset by weekday days
+    """Return a tz-aware datetime for the given weekday/time in local tz
+    (2026-03-16 = Monday).  Using .astimezone() on a naive datetime
+    mirrors the production code path in _check_timers."""
     from datetime import timedelta
 
-    base = datetime(2026, 3, 16, hour, minute, 0)  # Monday
+    # Naive → local tz-aware, preserving the hour/minute values.
+    base = datetime(2026, 3, 16, hour, minute, 0).astimezone()
     return base + timedelta(days=weekday)
 
 
@@ -388,7 +390,7 @@ def test_timer_fires_again_after_120s_cooldown():
     now = _make_datetime(weekday=0, hour=22, minute=30)
     # Pre-set last_fired_at to 121 s before now so the cooldown is already over
     # while the current time is still inside the ±60 s match window.
-    timer.last_fired_at = now.astimezone() - timedelta(seconds=121)
+    timer.last_fired_at = now - timedelta(seconds=121)
     with patch(
         "carconnectivity_plugins.campermode.scheduler.datetime"
     ) as mock_dt:
