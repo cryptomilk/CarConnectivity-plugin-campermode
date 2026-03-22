@@ -9,13 +9,15 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+from carconnectivity.climatization import Climatization
+from carconnectivity.command_impl import ClimatizationStartStopCommand
+from carconnectivity.units import Temperature
 from carconnectivity.vehicle import GenericVehicle
 from carconnectivity_plugins.campermode.models import PhaseState, save_data
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from carconnectivity.command_impl import ClimatizationStartStopCommand
     from carconnectivity_plugins.campermode.models import (
         CamperSettings,
         CamperState,
@@ -95,8 +97,6 @@ class CamperScheduler:
                 self._do_stop_session("battery")
 
     def on_climatization_state_changed(self, state: object) -> None:
-        from carconnectivity.climatization import Climatization
-
         if not isinstance(state, Climatization.ClimatizationState):
             return
         with self._lock:
@@ -248,10 +248,6 @@ class CamperScheduler:
     # ------------------------------------------------------------------
 
     def _do_start_session(self, reason: str) -> bool:
-        from carconnectivity.command_impl import (
-            ClimatizationStartStopCommand,
-        )
-
         if self._state.active:
             LOG.warning("Session already active")
             return False
@@ -333,10 +329,6 @@ class CamperScheduler:
         return True
 
     def _do_stop_session(self, reason: str) -> None:
-        from carconnectivity.command_impl import (
-            ClimatizationStartStopCommand,
-        )
-
         if not self._state.active:
             return
         LOG.info("Stopping camper session: %s", reason)
@@ -403,11 +395,6 @@ class CamperScheduler:
 
         Must be called while holding self._lock.
         """
-        from carconnectivity.command_impl import (
-            ClimatizationStartStopCommand,
-        )
-        from carconnectivity.units import Temperature
-
         if self._vehicle is None:
             LOG.warning("No vehicle — cannot send command")
             return False
@@ -549,10 +536,6 @@ class CamperScheduler:
 
     def _manage_session(self) -> None:
         """Manage phase transitions (must hold lock)."""
-        from carconnectivity.command_impl import (
-            ClimatizationStartStopCommand,
-        )
-
         now = time_module.monotonic()
         if self._phase_start is None or self._session_start is None:
             return
