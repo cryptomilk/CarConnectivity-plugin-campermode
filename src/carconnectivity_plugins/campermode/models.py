@@ -216,9 +216,7 @@ def load_data(
             settings_raw if isinstance(settings_raw, dict) else {}
         )
         timers: list[CamperTimer] = []
-        for entry in (
-            timers_raw if isinstance(timers_raw, list) else []
-        ):
+        for entry in timers_raw if isinstance(timers_raw, list) else []:
             try:
                 timers.append(CamperTimer.from_dict(entry))
             except (

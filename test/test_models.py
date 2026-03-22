@@ -331,7 +331,7 @@ def test_load_data_skips_malformed_timer_keeps_valid(tmp_path):
             {"settings": {}, "timers": [valid_timer, {"bad": True}, None]},
             f,
         )
-    s, t = load_data(path)
+    _, t = load_data(path)
     assert len(t) == 1
     assert t[0].id == "good"
 

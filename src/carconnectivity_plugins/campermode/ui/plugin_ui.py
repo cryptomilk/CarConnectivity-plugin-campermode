@@ -161,9 +161,7 @@ class CamperUI:
             form = LoginForm()
             if form.validate_on_submit():
                 username = form.username.data or ""
-                stored_pwd = self.users.get(username, {}).get(
-                    "password", ""
-                )
+                stored_pwd = self.users.get(username, {}).get("password", "")
                 if stored_pwd and hmac.compare_digest(
                     stored_pwd, form.password.data or ""
                 ):
