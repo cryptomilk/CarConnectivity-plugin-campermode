@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from carconnectivity.attributes import EnumAttribute, LevelAttribute
@@ -205,7 +206,7 @@ class Plugin(BasePlugin):
 
     @property
     def state(self) -> CamperState:
-        return self._state
+        return replace(self._state)
 
     @property
     def timers(self) -> list[CamperTimer]:
