@@ -491,9 +491,25 @@ def test_continuous_mode_no_pause_phase():
     )
     sched = make_scheduler(vehicle=vehicle, settings=settings)
     _start_session_at(sched, 0.0)
-    _tick_at(sched, 61.0)  # end of cycle → stays heating (no pause)
+    _tick_at(sched, 181.0)  # past cycle + rate limit → stays heating
     assert sched._state.current_phase == "heating"
     assert sched._state.cycle_number == 2
+
+
+def test_continuous_mode_rate_limited_does_not_advance_cycle():
+    """When the START command is rate-limited in continuous mode,
+    cycle_number and _phase_start must NOT be updated."""
+    vehicle = make_vehicle()
+    settings = make_settings(
+        cycle_duration_minutes=1, minutes_between_cycles=0
+    )
+    sched = make_scheduler(vehicle=vehicle, settings=settings)
+    _start_session_at(sched, 0.0)
+    # Tick at 61 s — past cycle but within rate-limit window (180 s)
+    _tick_at(sched, 61.0)
+    # cycle_number should stay at 1 because START was rate-limited
+    assert sched._state.cycle_number == 1
+    assert sched._state.current_phase == "heating"
 
 
 def test_duration_reached_stops_session():

@@ -600,20 +600,20 @@ class CamperScheduler:
                 if self._settings.minutes_between_cycles == 0:
                     # Continuous — restart cycle immediately
                     self._record_heating_end()
-                    self._state.cycle_number += 1
-                    self._phase_start = now
-                    self._half_cycle = False
-                    self._heating_start_battery = self._battery_level
-                    self._state.phase_remaining_seconds = (
-                        self._settings.cycle_duration_minutes * 60
-                    )
                     LOG.debug(
                         "Continuous mode: starting cycle %d",
-                        self._state.cycle_number,
+                        self._state.cycle_number + 1,
                     )
-                    self._send_command(
+                    if self._send_command(
                         ClimatizationStartStopCommand.Command.START
-                    )
+                    ):
+                        self._state.cycle_number += 1
+                        self._phase_start = now
+                        self._half_cycle = False
+                        self._heating_start_battery = self._battery_level
+                        self._state.phase_remaining_seconds = (
+                            self._settings.cycle_duration_minutes * 60
+                        )
                 else:
                     self._record_heating_end()
                     LOG.info(
