@@ -64,7 +64,7 @@ class Plugin(BasePlugin):
             save_callback=self.save_settings,
         )
         self._observed_drives: list[ElectricDrive] = []
-        self._observed_climatization: list = []
+        self._observed_climatization: list[EnumAttribute] = []
 
         # ── Web server config ─────────────────────────────────────────
         host: str = str(config.get("host", "0.0.0.0"))  # nosec
