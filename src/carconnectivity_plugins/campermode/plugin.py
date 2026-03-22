@@ -37,7 +37,6 @@ class Plugin(BasePlugin):
         plugin_id: str,
         car_connectivity: CarConnectivity,
         config: dict,
-        *args,
         initialization: dict | None = None,
         **kwargs,
     ) -> None:
