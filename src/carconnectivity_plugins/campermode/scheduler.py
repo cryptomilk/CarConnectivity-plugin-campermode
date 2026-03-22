@@ -515,14 +515,13 @@ class CamperScheduler:
             current_secs = current_time.hour * 3600 + current_time.minute * 60
             diff = abs(current_secs - timer_secs)
 
-            if diff <= 60 and current_dow in timer.days_of_week:
-                # Normal case: within ±60 s of timer time on the scheduled day
-                pass
-            elif diff >= 86340 and prev_dow in timer.days_of_week:
-                # Midnight wrap: just past 00:00, timer was set near 23:59 on
-                # the previous calendar day
-                pass
-            else:
+            # Normal case: within ±60 s on the scheduled day, or midnight
+            # wrap: just past 00:00, timer was set near 23:59 on the
+            # previous calendar day.
+            if not (
+                (diff <= 60 and current_dow in timer.days_of_week)
+                or (diff >= 86340 and prev_dow in timer.days_of_week)
+            ):
                 continue
 
             LOG.info("Timer %s fired", timer.id)
