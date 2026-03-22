@@ -175,7 +175,12 @@ class CamperUI:
                     LOG.info("User '%s' logged in", username)
                     next_url = flask.request.args.get("next") or ""
                     parsed = urllib.parse.urlsplit(next_url)
-                    if parsed.scheme or parsed.netloc:
+                    if (
+                        parsed.scheme
+                        or parsed.netloc
+                        or not next_url.startswith("/")
+                        or next_url.startswith("//")
+                    ):
                         next_url = flask.url_for("dashboard")
                     return flask.redirect(
                         next_url or flask.url_for("dashboard")
