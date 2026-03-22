@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import hmac
 import logging
 import math
 import os
@@ -111,7 +112,8 @@ class CamperUI:
             if ":" not in decoded:
                 return None
             username, password = decoded.split(":", 1)
-            if self.users.get(username, {}).get("password") == password:
+            stored = self.users.get(username, {}).get("password", "")
+            if hmac.compare_digest(stored, password):
                 user = flask_login.UserMixin()
                 user.id = username  # type: ignore[assignment]
                 return user
@@ -159,8 +161,12 @@ class CamperUI:
             form = LoginForm()
             if form.validate_on_submit():
                 username = form.username.data or ""
-                stored_pwd = self.users.get(username, {}).get("password")
-                if stored_pwd is not None and stored_pwd == form.password.data:
+                stored_pwd = self.users.get(username, {}).get(
+                    "password", ""
+                )
+                if stored_pwd and hmac.compare_digest(
+                    stored_pwd, form.password.data or ""
+                ):
                     user = flask_login.UserMixin()
                     user.id = username  # type: ignore[assignment]
                     flask_login.login_user(
