@@ -287,6 +287,18 @@ class CamperScheduler:
             )
             return False
 
+        # Early rate-limit check before pushing settings to the vehicle.
+        now_mono = time_module.monotonic()
+        if self._last_command_time is not None:
+            elapsed = now_mono - self._last_command_time
+            if elapsed < _MIN_CMD_INTERVAL:
+                LOG.warning(
+                    "Rate limit: last command %ds ago (min %ds)",
+                    int(elapsed),
+                    _MIN_CMD_INTERVAL,
+                )
+                return False
+
         # Apply zone/temperature settings
         self._apply_climate_settings()
 
