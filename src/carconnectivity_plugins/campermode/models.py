@@ -211,10 +211,19 @@ def load_data(
         settings = CamperSettings.from_dict(
             settings_raw if isinstance(settings_raw, dict) else {}
         )
-        timers = [
-            CamperTimer.from_dict(t)
-            for t in (timers_raw if isinstance(timers_raw, list) else [])
-        ]
+        timers: list[CamperTimer] = []
+        for entry in (
+            timers_raw if isinstance(timers_raw, list) else []
+        ):
+            try:
+                timers.append(CamperTimer.from_dict(entry))
+            except (
+                KeyError,
+                ValueError,
+                TypeError,
+                AttributeError,
+            ) as exc:
+                LOG.warning("Skipping malformed timer entry: %s", exc)
         LOG.debug("Loaded campermode data from %s", path)
         return settings, timers
     except FileNotFoundError:

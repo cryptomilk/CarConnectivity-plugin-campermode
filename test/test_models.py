@@ -315,6 +315,27 @@ def test_load_data_null_timer_entry_does_not_crash(tmp_path):
     assert t == []
 
 
+def test_load_data_skips_malformed_timer_keeps_valid(tmp_path):
+    """A malformed timer entry is skipped while valid ones are kept."""
+    valid_timer = {
+        "id": "good",
+        "time": "08:00:00",
+        "days_of_week": [0, 1],
+        "repeat_weekly": True,
+        "enabled": True,
+        "created_at": "2026-01-15T10:00:00+00:00",
+    }
+    path = str(tmp_path / "mixed_timers.json")
+    with open(path, "w") as f:
+        json.dump(
+            {"settings": {}, "timers": [valid_timer, {"bad": True}, None]},
+            f,
+        )
+    s, t = load_data(path)
+    assert len(t) == 1
+    assert t[0].id == "good"
+
+
 def test_save_data_no_tmp_file_left(tmp_path):
     """After a successful save the .tmp scratch file must be removed."""
     path = str(tmp_path / "campermode.json")
