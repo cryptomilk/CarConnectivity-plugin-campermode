@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -283,3 +284,138 @@ def test_climatization_observer_forwards_to_scheduler(tmp_path):
         )
 
     mock_handler.assert_called_once_with(Climatization.ClimatizationState.OFF)
+
+
+# ---------------------------------------------------------------------------
+# Part C: HTTP Basic Auth tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def auth_flask_client():
+    """Flask test client with authentication enabled."""
+    plugin = make_mock_plugin()
+    ui = CamperUI(
+        plugin=plugin,
+        host="127.0.0.1",
+        port=4001,
+        users={"admin": "secret"},
+    )
+    ui.app.config["WTF_CSRF_ENABLED"] = False
+    ui.app.config["TESTING"] = True
+    with ui.app.test_client() as client:
+        yield client
+
+
+def _basic_auth_header(username: str, password: str) -> dict[str, str]:
+    cred = base64.b64encode(f"{username}:{password}".encode()).decode()
+    return {"Authorization": f"Basic {cred}"}
+
+
+def test_basic_auth_valid_credentials(auth_flask_client):
+    resp = auth_flask_client.get(
+        "/api/status", headers=_basic_auth_header("admin", "secret")
+    )
+    assert resp.status_code == 200
+
+
+def test_basic_auth_wrong_password(auth_flask_client):
+    resp = auth_flask_client.get(
+        "/api/status", headers=_basic_auth_header("admin", "wrong")
+    )
+    assert resp.status_code == 401
+
+
+def test_basic_auth_unknown_user(auth_flask_client):
+    resp = auth_flask_client.get(
+        "/api/status", headers=_basic_auth_header("nobody", "secret")
+    )
+    assert resp.status_code == 401
+
+
+def test_basic_auth_malformed_base64(auth_flask_client):
+    resp = auth_flask_client.get(
+        "/api/status", headers={"Authorization": "Basic !!!invalid!!!"}
+    )
+    assert resp.status_code == 401
+
+
+def test_basic_auth_missing_colon(auth_flask_client):
+    cred = base64.b64encode(b"nocolon").decode()
+    resp = auth_flask_client.get(
+        "/api/status", headers={"Authorization": f"Basic {cred}"}
+    )
+    assert resp.status_code == 401
+
+
+def test_no_auth_dashboard_redirects_to_login(auth_flask_client):
+    resp = auth_flask_client.get("/")
+    assert resp.status_code in (302, 303)
+    assert "/login" in resp.headers.get("Location", "")
+
+
+def test_no_auth_api_returns_401(auth_flask_client):
+    resp = auth_flask_client.get("/api/status")
+    assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Part D: /api/settings endpoint tests
+# ---------------------------------------------------------------------------
+
+
+def test_api_settings_valid_post(flask_client):
+    resp = flask_client.post(
+        "/api/settings",
+        json={
+            "min_battery_level": 30,
+            "minutes_between_cycles": 60,
+            "total_duration_minutes": 120,
+            "endless": False,
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+
+
+def test_api_settings_invalid_json(flask_client):
+    resp = flask_client.post(
+        "/api/settings",
+        data="not json",
+        content_type="application/json",
+    )
+    assert resp.status_code == 400
+
+
+def test_api_settings_missing_key(flask_client):
+    resp = flask_client.post(
+        "/api/settings",
+        json={"min_battery_level": 30},
+    )
+    assert resp.status_code == 400
+
+
+def test_api_settings_battery_out_of_range(flask_client):
+    resp = flask_client.post(
+        "/api/settings",
+        json={
+            "min_battery_level": 5,
+            "minutes_between_cycles": 0,
+            "total_duration_minutes": 120,
+            "endless": False,
+        },
+    )
+    assert resp.status_code == 400
+
+
+def test_api_settings_invalid_interval(flask_client):
+    resp = flask_client.post(
+        "/api/settings",
+        json={
+            "min_battery_level": 20,
+            "minutes_between_cycles": 55,
+            "total_duration_minutes": 120,
+            "endless": False,
+        },
+    )
+    assert resp.status_code == 400
