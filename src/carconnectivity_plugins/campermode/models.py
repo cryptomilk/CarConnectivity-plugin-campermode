@@ -46,14 +46,18 @@ class CamperTimer:
 
     @classmethod
     def from_dict(cls, data: dict[str, object]) -> CamperTimer:
+        raw_days = data["days_of_week"]  # type: ignore[arg-type]
+        valid_days: list[int] = []
+        for d in raw_days:
+            val = int(d)
+            if 0 <= val <= 6:
+                valid_days.append(val)
+            else:
+                LOG.warning("Ignoring invalid day_of_week value: %s", d)
         return cls(
             id=str(data["id"]),
             time=time.fromisoformat(str(data["time"])),
-            days_of_week=[
-                int(d)
-                for d in data["days_of_week"]  # type: ignore[arg-type]
-                if 0 <= int(d) <= 6
-            ],
+            days_of_week=valid_days,
             repeat_weekly=bool(data["repeat_weekly"]),
             enabled=bool(data["enabled"]),
             created_at=datetime.fromisoformat(str(data["created_at"])),
