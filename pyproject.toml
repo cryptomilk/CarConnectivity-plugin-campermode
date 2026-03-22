@@ -20,6 +20,7 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 classifiers = [
+    "Development Status :: 5 - Production/Stable",
     "Topic :: Home Automation",
 ]
 
