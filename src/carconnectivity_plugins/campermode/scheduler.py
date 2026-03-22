@@ -405,8 +405,8 @@ class CamperScheduler:
                 }
                 for zone, setting in zone_map.items():
                     attr = getattr(clima_settings, zone, None)
-                    if attr is not None and attr.is_changeable:  # type: ignore[union-attr]
-                        attr.value = extra and setting  # type: ignore[union-attr]
+                    if attr is not None and attr.is_changeable:
+                        attr.value = extra and setting
         except ImportError:
             pass
         except Exception as exc:

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import enum
 import logging
 from dataclasses import replace
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from carconnectivity.attributes import EnumAttribute, LevelAttribute
@@ -155,11 +157,11 @@ class Plugin(BasePlugin):
         )
         self._observed_climatization.append(vehicle.climatization.state)
         for conn in self.car_connectivity.connectors.connectors.values():
-            if hasattr(conn, "interval") and conn.interval.value is not None:
-                self._scheduler.set_poll_interval(
-                    conn.interval.value.total_seconds()
-                )
-                break
+            if hasattr(conn, "interval"):
+                val = getattr(conn.interval, "value", None)
+                if isinstance(val, timedelta):
+                    self._scheduler.set_poll_interval(val.total_seconds())
+                    break
 
     def _on_vehicle_added(
         self, element: object, flags: Observable.ObserverEvent
@@ -179,7 +181,9 @@ class Plugin(BasePlugin):
         self, element: object, flags: Observable.ObserverEvent
     ) -> None:
         del flags
-        if isinstance(element, EnumAttribute) and element.value is not None:
+        if isinstance(element, EnumAttribute) and isinstance(
+            element.value, enum.Enum
+        ):
             self._state.climatization_state = element.value.name.lower()
             self._scheduler.on_climatization_state_changed(element.value)
 

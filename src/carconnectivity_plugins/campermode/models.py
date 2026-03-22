@@ -8,6 +8,7 @@ import os
 from dataclasses import dataclass, field, replace
 from datetime import datetime, time
 from enum import Enum
+from typing import cast
 
 LOG: logging.Logger = logging.getLogger("carconnectivity.plugins.campermode")
 
@@ -46,7 +47,7 @@ class CamperTimer:
 
     @classmethod
     def from_dict(cls, data: dict[str, object]) -> CamperTimer:
-        raw_days = data["days_of_week"]  # type: ignore[arg-type]
+        raw_days = cast("list[str | int | float]", data["days_of_week"])
         valid_days: list[int] = []
         for d in raw_days:
             val = int(d)
