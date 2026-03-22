@@ -54,7 +54,7 @@ known-first-party = ["carconnectivity_plugins", "carconnectivity"]
 
 [tool.tox]
 requires = ["tox>=4"]
-env_list = ["lint", "format", "typing"]
+env_list = ["lint", "format", "typing", "test"]
 
 [tool.tox.env.lint]
 description = "Lint with ruff"
@@ -72,4 +72,9 @@ commands = [["ruff", "format", "--check", "src/", "test/"]]
 description = "Type check with ty"
 deps = ["ty"]
 commands = [["ty", "check", "src/"]]
+
+[tool.tox.env.test]
+description = "Run tests with pytest"
+deps = ["pytest"]
+commands = [["pytest", "test/", "-q"]]
 
