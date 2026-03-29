@@ -384,7 +384,7 @@ class CamperScheduler:
 
         # VW-specific per-zone seat/window heating
         try:
-            from carconnectivity_connectors.volkswagen.climatization import (  # type: ignore[import-not-found]
+            from carconnectivity_connectors.volkswagen.climatization import (  # ty: ignore[unresolved-import]
                 VolkswagenClimatization,
             )
 
