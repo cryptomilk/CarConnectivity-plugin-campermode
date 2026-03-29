@@ -8,7 +8,7 @@ import os
 from dataclasses import dataclass, field, replace
 from datetime import datetime, time
 from enum import Enum
-from typing import cast
+from typing import Any, cast
 
 LOG: logging.Logger = logging.getLogger("carconnectivity.plugins.campermode")
 
@@ -133,18 +133,12 @@ class CamperSettings:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, object]) -> CamperSettings:
+    def from_dict(cls, data: dict[str, Any]) -> CamperSettings:
         return cls(
-            min_battery_level=int(data.get("min_battery_level", 20)),  # type: ignore[arg-type]
-            minutes_between_cycles=int(
-                data.get("minutes_between_cycles", 0)  # type: ignore[arg-type]
-            ),
-            cycle_duration_minutes=int(
-                data.get("cycle_duration_minutes", 30)  # type: ignore[arg-type]
-            ),
-            total_duration_minutes=int(
-                data.get("total_duration_minutes", 60)  # type: ignore[arg-type]
-            ),
+            min_battery_level=int(data.get("min_battery_level", 20)),
+            minutes_between_cycles=int(data.get("minutes_between_cycles", 0)),
+            cycle_duration_minutes=int(data.get("cycle_duration_minutes", 30)),
+            total_duration_minutes=int(data.get("total_duration_minutes", 60)),
             endless=bool(data.get("endless", False)),
             extra_heating_enabled=bool(
                 data.get("extra_heating_enabled", False)
@@ -155,9 +149,7 @@ class CamperSettings:
             front_zone_right=bool(data.get("front_zone_right", False)),
             rear_zone_left=bool(data.get("rear_zone_left", False)),
             rear_zone_right=bool(data.get("rear_zone_right", False)),
-            target_temperature=float(
-                data.get("target_temperature", 22.0)  # type: ignore[arg-type]
-            ),
+            target_temperature=float(data.get("target_temperature", 22.0)),
         )
 
 

@@ -44,6 +44,11 @@ class LoginForm(FlaskForm):
     submit = SubmitField("Login")
 
 
+class _User(flask_login.UserMixin):
+    def __init__(self, username: str) -> None:
+        self.id: str = username
+
+
 class CamperUI:
     """Standalone Flask web server for the CamperMode plugin."""
 
@@ -94,8 +99,7 @@ class CamperUI:
         ) -> flask_login.UserMixin | None:
             if username not in self.users:
                 return None
-            user = flask_login.UserMixin()
-            user.id = username  # type: ignore[assignment]
+            user = _User(username)
             return user
 
         @login_manager.request_loader
@@ -114,8 +118,7 @@ class CamperUI:
             username, password = decoded.split(":", 1)
             stored = self.users.get(username, {}).get("password", "")
             if hmac.compare_digest(stored, password):
-                user = flask_login.UserMixin()
-                user.id = username  # type: ignore[assignment]
+                user = _User(username)
                 return user
             return None
 
@@ -165,8 +168,7 @@ class CamperUI:
                 if stored_pwd and hmac.compare_digest(
                     stored_pwd, form.password.data or ""
                 ):
-                    user = flask_login.UserMixin()
-                    user.id = username  # type: ignore[assignment]
+                    user = _User(username)
                     flask_login.login_user(
                         user, remember=bool(form.remember_me.data)
                     )
